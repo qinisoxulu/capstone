@@ -1,0 +1,180 @@
+IAM
+Cognito
+DynamoDB
+Lambda
+API Gateway
+S3
+CloudFront
+Amazon Simple Email Service
+CloudFormation
+
+
+-- on_user_created
+import boto3
+from datetime import datetime
+
+dynamodb = boto3.resource("dynamodb")
+table = dynamodb.Table("Users")
+
+def lambda_handler(event, context):
+
+    user = event["request"]["userAttributes"]
+
+    table.put_item(Item={
+        "user_id": user["sub"],
+        "email": user["email"],
+        "name": user.get("name"),
+        "created_at": datetime.utcnow().isoformat()
+    })
+
+    return event
+
+-- hello_user
+import boto3
+import json
+import logging
+import os
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+TABLE_NAME = os.environ.get('USER_TABLE_NAME', 'Users') 
+
+try:
+    dynamodb = boto3.resource('dynamodb')
+    table = dynamodb.Table(TABLE_NAME)
+except Exception as e:
+    logger.critical(f"DynamoDB initialization failed: {e}")
+
+def lambda_handler(event, context):
+    try:
+        username = event.get("pathParameters", {}).get("username")
+        if not username:
+            return {
+                "statusCode": 401,
+                "headers": {"Content-Type": "application/json"},
+                "body": json.dumps({"error": "Missing 'username' path parameter."})
+            }
+    except Exception as e:
+        logger.error(f"Parameter parsing error: {e}")
+        return {
+            "statusCode": 500,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps({"error": "Error processing request parameters."})
+        }
+
+    try:
+        response = table.get_item(Key={'username': username})
+    except Exception as e:
+        logger.error(f"DynamoDB GetItem failed for user {username}: {e}")
+        return {
+            "statusCode": 500,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps({"error": "Failed to retrieve data from database."})
+        }
+
+    if "Item" in response:
+        greeting = response["Item"].get("greeting", f"Hello, {username}!") 
+        status_code = 200
+    else:
+        greeting = f"User '{username}' not found."
+        status_code = 404
+        
+    return {
+        "statusCode": status_code,
+        "headers": {
+            "Content-Type": "application/json"
+        },
+        "body": json.dumps({"message": greeting})
+    }
+
+-- hello_world
+import json
+
+def lambda_handler(event, context):
+    return {
+        "statusCode": 200,
+        "body": json.dumps('Hello World')
+    }
+
+
+
+aws configure - access keys
+aws configure sso - single sign-on
+aws sts get-caller-identity
+
+
+✅ CHECK REGION
+Check your current region:
+aws configure get region
+
+Or specify one:
+aws lambda list-functions --region us-east-1
+
+✅ 1. AWS Lambda
+List functions
+aws lambda list-functions
+
+Count Lambda functions
+aws lambda list-functions --query "Functions | length(@)"
+
+✅ 2. API Gateway
+REST APIs (API Gateway v1)
+aws apigateway get-rest-apis
+
+Count REST APIs
+aws apigateway get-rest-apis --query "items | length(@)"
+
+HTTP & WebSocket APIs (API Gateway v2)
+aws apigatewayv2 get-apis
+
+Count v2 APIs
+aws apigatewayv2 get-apis --query "Items | length(@)"
+
+✅ 3. DynamoDB
+List tables
+aws dynamodb list-tables
+
+Count tables
+aws dynamodb list-tables --query "TableNames | length(@)"
+
+✅ 4. Amazon S3
+List buckets
+aws s3 ls
+
+Count buckets
+aws s3 ls | Measure-Object | Select-Object -ExpandProperty Count
+
+✅ 5. Amazon Cognito
+User Pools
+aws cognito-idp list-user-pools --max-results 60
+
+Count User Pools
+aws cognito-idp list-user-pools --max-results 60 --query "UserPools | length(@)"
+
+Identity Pools
+aws cognito-identity list-identity-pools --max-results 60
+
+Count Identity Pools
+aws cognito-identity list-identity-pools --max-results 60 --query "IdentityPools | length(@)"
+
+✅ 6. CloudFront
+List distributions
+aws cloudfront list-distributions
+
+Count distributions
+aws cloudfront list-distributions --query "DistributionList.Items | length(@)"
+
+✅ 7. CloudFormation
+List stacks
+aws cloudformation list-stacks --stack-status-filter CREATE_COMPLETE UPDATE_COMPLETE
+
+Count stacks
+aws cloudformation list-stacks --stack-status-filter CREATE_COMPLETE UPDATE_COMPLETE --query "StackSummaries | length(@)"
+
+✅ 8. Amazon SES (Simple Email Service)
+List verified identities
+aws ses list-identities
+
+Count identities
+aws ses list-identities --query "Identities | length(@)"
