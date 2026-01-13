@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Add Storage Unit</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div class="container">
+  <h1>Add Storage Unit</h1>
+  <form id="addStorageForm">
+    <label for="name">Name</label>
+    <input type="text" id="name" required />
+    <label for="location">Location</label>
+    <input type="text" id="location" required />
+    <label for="capacity">Capacity</label>
+    <input type="number" id="capacity" min="0" />
+    <label for="description">Description</label>
+    <input type="text" id="description" />
+    <button type="submit">Add Storage</button>
+  </form>
+  <pre id="result"></pre>
+  <button onclick="window.location.href='dashboard.html'">Back to Dashboard</button>
+  <script src="https://cdn.jsdelivr.net/npm/amazon-cognito-identity-js@6.3.8/dist/amazon-cognito-identity.min.js"></script>
+  <script src="js/add-storage.js"></script>
+</div>
+</body>
+</html>

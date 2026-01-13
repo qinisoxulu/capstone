@@ -1,0 +1,413 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  capstone-sam
+  Sample SAM Template for capstone-sam
+
+Globals:
+  Function:
+    Timeout: 3
+    Tracing: Active
+    LoggingConfig:
+      LogFormat: JSON
+  Api:
+    TracingEnabled: true
+
+Resources:
+  # API Lambda Functions
+  ShowFacilitiesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: show_facilities/
+      Handler: app.lambda_handler
+      Runtime: python3.12
+      Architectures:
+      - x86_64
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: Facilities
+      Events:
+        ShowFacilities:
+          Type: Api
+          Properties:
+            Path: /facilities
+            Method: get
+
+  ShowFacilityAvailabilityFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: show_facility_availability/
+      Handler: app.lambda_handler
+      Runtime: python3.12
+      Architectures:
+      - x86_64
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: Units
+      Events:
+        ShowFacilityAvailability:
+          Type: Api
+          Properties:
+            Path: /facilities/{facility_id}/availability
+            Method: get
+
+  ShowUnitDetailsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: show_unit_details/
+      Handler: app.lambda_handler
+      Runtime: python3.12
+      Architectures:
+      - x86_64
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: Units
+      Events:
+        ShowUnitDetails:
+          Type: Api
+          Properties:
+            Path: /units/{unit_id}
+            Method: get
+
+  CreateRentalFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: create_rental/
+      Handler: app.lambda_handler
+      Runtime: python3.12
+      Architectures:
+      - x86_64
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: Rentals
+        - DynamoDBCrudPolicy:
+            TableName: Units
+      Events:
+        CreateRental:
+          Type: Api
+          Properties:
+            Path: /rentals
+            Method: post
+
+  DeleteRentalFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: delete_rental/
+      Handler: app.lambda_handler
+      Runtime: python3.12
+      Architectures:
+      - x86_64
+      Policies:
+      - DynamoDBCrudPolicy:
+          TableName: Rentals
+      - DynamoDBCrudPolicy:
+          TableName: Units
+      Events:
+        DeleteRental:
+          Type: Api
+          Properties:
+            Path: /rentals/{rental_id}
+            Method: delete
+
+  ShowUserRentalsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: show_user_rentals/
+      Handler: app.lambda_handler
+      Runtime: python3.12
+      Architectures:
+      - x86_64
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: Rentals
+        - DynamoDBReadPolicy:
+            TableName: Units
+        - DynamoDBReadPolicy:
+            TableName: Facilities
+      Events:
+        ShowUserRentals:
+          Type: Api
+          Properties:
+            Path: /rentals
+            Method: get
+
+  ShareUnitAccessFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: share_unit_access/
+      Handler: app.lambda_handler
+      Runtime: python3.12
+      Architectures:
+      - x86_64
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: SharedUnits
+        - DynamoDBReadPolicy:
+            TableName: Rentals
+      Events:
+        ShareUnitAccess:
+          Type: Api
+          Properties:
+            Path: /units/{unit_id}/share
+            Method: post
+
+  RequestUnitAccessFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: request_unit_access/
+      Handler: app.lambda_handler
+      Runtime: python3.12
+      Architectures:
+      - x86_64
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: ShareRequests
+        - DynamoDBReadPolicy:
+            TableName: Units
+        - DynamoDBReadPolicy:
+            TableName: Rentals
+      Events:
+        RequestUnitAccess:
+          Type: Api
+          Properties:
+            Path: /units/{unit_id}/request-access
+            Method: post
+
+  ShowShareRequestsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: show_share_requests/
+      Handler: app.lambda_handler
+      Runtime: python3.12
+      Architectures:
+      - x86_64
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: ShareRequests
+      Events:
+        ShowShareRequests:
+          Type: Api
+          Properties:
+            Path: /share-requests
+            Method: get
+
+  ApproveShareRequestFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: approve_share_request/
+      Handler: app.lambda_handler
+      Runtime: python3.12
+      Architectures:
+      - x86_64
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: ShareRequests
+        - DynamoDBCrudPolicy:
+            TableName: SharedUnits
+      Events:
+        ApproveShareRequest:
+          Type: Api
+          Properties:
+            Path: /share-requests/{request_id}
+            Method: put
+
+  ShowSharedUsersFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: show_shared_users/
+      Handler: app.lambda_handler
+      Runtime: python3.12
+      Architectures:
+      - x86_64
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: SharedUnits
+      Events:
+        ShowSharedUsers:
+          Type: Api
+          Properties:
+            Path: /units/{unit_id}/shared-users
+            Method: get
+
+  SelectInvoicesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: select_invoices/
+      Handler: app.lambda_handler
+      Runtime: python3.12
+      Architectures:
+      - x86_64
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: Invoices
+      Events:
+        SelectInvoices:
+          Type: Api
+          Properties:
+            Path: /invoices
+            Method: get
+
+  ShowUnitPricingFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: show_unit_pricing/
+      Handler: app.lambda_handler
+      Runtime: python3.12
+      Architectures:
+      - x86_64
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: Units
+      Events:
+        ShowUnitPricing:
+          Type: Api
+          Properties:
+            Path: /units/{unit_id}/pricing
+            Method: get
+
+  UpsertPaymentMethodFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: upsert_payment_method/
+      Handler: app.lambda_handler
+      Runtime: python3.12
+      Architectures:
+      - x86_64
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: PaymentMethods
+      Events:
+        UpsertPaymentMethod:
+          Type: Api
+          Properties:
+            Path: /payment-methods
+            Method: post
+
+  ShowPaymentMethodsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: show_payment_methods/
+      Handler: app.lambda_handler
+      Runtime: python3.12
+      Architectures:
+      - x86_64
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: PaymentMethods
+      Events:
+        ShowPaymentMethods:
+          Type: Api
+          Properties:
+            Path: /payment-methods
+            Method: get
+
+  TriggerOnUserCreatedFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: trigger_on_user_created/
+      Handler: app.lambda_handler
+      Runtime: python3.12
+      Architectures:
+      - x86_64
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: Users
+        - SESCrudPolicy:
+            IdentityName: "*"
+
+  UnitAccessControlFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: unit_access_control/
+      Handler: app.lambda_handler
+      Runtime: python3.12
+      Architectures:
+      - x86_64
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: Rentals
+        - DynamoDBReadPolicy:
+            TableName: SharedUnits
+        - DynamoDBCrudPolicy:
+            TableName: AccessEvents
+      Events:
+        UnitAccessControl:
+          Type: Api
+          Properties:
+            Path: /access-control
+            Method: post
+
+  UnitSecurityNotificationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: unit_security_notification/
+      Handler: app.lambda_handler
+      Runtime: python3.12
+      Architectures:
+      - x86_64
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: Rentals
+        - DynamoDBReadPolicy:
+            TableName: Users
+        - SESCrudPolicy:
+            IdentityName: "*"
+        - DynamoDBStreamReadPolicy:
+            TableName: AccessEvents
+            StreamName: "*"
+
+  TriggerRecurringBillingFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: trigger_recurring_billing/
+      Handler: app.lambda_handler
+      Runtime: python3.12
+      Architectures:
+      - x86_64
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: Rentals
+        - DynamoDBCrudPolicy:
+            TableName: Invoices
+      Events:
+        MonthlySchedule:
+          Type: Schedule
+          Properties:
+            Schedule: cron(0 0 1 * ? *)
+            Description: Run monthly billing on the 1st of each month
+
+  TriggerInvoiceEmailFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: trigger_invoice_email/
+      Handler: app.lambda_handler
+      Runtime: python3.12
+      Architectures:
+      - x86_64
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: Users
+        - SESCrudPolicy:
+            IdentityName: "*"
+        - DynamoDBStreamReadPolicy:
+            TableName: Invoices
+            StreamName: "*"
+
+  ApplicationResourceGroup:
+    Type: AWS::ResourceGroups::Group
+    Properties:
+      Name:
+        Fn::Sub: ApplicationInsights-SAM-${AWS::StackName}
+      ResourceQuery:
+        Type: CLOUDFORMATION_STACK_1_0
+  ApplicationInsightsMonitoring:
+    Type: AWS::ApplicationInsights::Application
+    Properties:
+      ResourceGroupName:
+        Ref: ApplicationResourceGroup
+      AutoConfigurationEnabled: 'true'
+
+Outputs:
+  ApiGatewayUrl:
+    Description: API Gateway endpoint URL for Prod stage
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/Prod/"

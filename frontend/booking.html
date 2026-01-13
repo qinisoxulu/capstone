@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Booking</title>
+    <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+    <div class="container">
+        <h1>Book a Storage Unit</h1>
+        <form id="bookingForm">
+            <label for="unitSelect">Storage Unit</label>
+            <select id="unitSelect" required></select>
+            <label for="startDate">Start Date</label>
+            <input type="date" id="startDate" required />
+            <label for="endDate">End Date</label>
+            <input type="date" id="endDate" required />
+            <label for="notes">Notes</label>
+            <input type="text" id="notes" />
+            <button type="submit">Confirm Booking</button>
+        </form>
+        <pre id="bookingResult"></pre>
+        <button onclick="window.location.href='dashboard.html'">Back to Dashboard</button>
+        <script src="https://cdn.jsdelivr.net/npm/amazon-cognito-identity-js@6.3.8/dist/amazon-cognito-identity.min.js"></script>
+        <script src="js/booking.js"></script>
+    </div>
+</body>
+</html>

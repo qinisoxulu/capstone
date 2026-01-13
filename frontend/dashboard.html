@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>Simple Storage — Self-storage for the digital age</title>
+    <link rel="stylesheet" href="css/dashboard.css" />
+</head>
+
+<body>
+    <header class="topbar">
+        <div class="brand">
+            <div class="logo" aria-hidden="true">SS</div>
+            <div>
+                <div class="brand__title">Simple Storage</div>
+                <div class="brand__tag">Flexible. Secure. Seamless.</div>
+            </div>
+        </div>
+
+        <nav class="topbar__actions">
+            <div id="userMenu" class="userMenu">
+                <div class="userMenu__who">
+                    <div class="avatar" aria-hidden="true"></div>
+                    <div>
+                        <div id="userName" class="userMenu__name">Loading...</div>
+                        <div id="userEmail" class="userMenu__email">—</div>
+                    </div>
+                </div>
+                <div class="userMenu__row">
+                    <button id="btnLogout" class="btn btn-ghost">Log out</button>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container">
+        <section class="hero">
+            <div class="hero__copy">
+                <h1>Book a storage unit in minutes.</h1>
+                <p>
+                    Browse facilities by town, pick a unit size, choose billing, and manage access securely.
+                    This UI connects to your Lambda functions via API Gateway with Cognito authentication.
+                </p>
+
+                <div class="hero__cta">
+                    <button id="btnGoExplore" class="btn btn-primary">Explore units</button>
+                    <button id="btnGoRentals" class="btn btn-secondary">My rentals</button>
+                </div>
+
+                <div class="meta">
+                    <div class="pill">App unlock</div>
+                    <div class="pill">Share access</div>
+                    <div class="pill">Secure payments</div>
+                    <div class="pill">Cancel with notice</div>
+                </div>
+            </div>
+
+            <div class="hero__panel">
+                <div class="panel">
+                    <div class="panel__title">Connection status</div>
+                    <div class="panel__body">
+                        <div class="kv">
+                            <div class="kv__k">Auth</div>
+                            <div id="authStatus" class="kv__v">Authenticated</div>
+                        </div>
+                        <div class="kv">
+                            <div class="kv__k">API Base URL</div>
+                            <div id="apiStatus" class="kv__v mono" style="font-size: 0.75rem; word-break: break-all;">—</div>
+                        </div>
+                        <div class="kv">
+                            <div class="kv__k">Mode</div>
+                            <div class="kv__v"><span class="mono">OAuth PKCE</span></div>
+                        </div>
+
+                        <label class="field" style="margin-top: 12px;">
+                            <span class="field__label">Update API URL (optional)</span>
+                            <input id="apiUrlInput" class="input" placeholder="https://your-api.amazonaws.com/Prod" />
+                        </label>
+                        <button id="btnUpdateApi" class="btn btn-ghost btn-block">Update API URL</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="tabs">
+            <button class="tab is-active" data-view="explore">Explore</button>
+            <button class="tab" data-view="rentals">My rentals</button>
+            <button class="tab" data-view="sharing">Sharing</button>
+            <button class="tab" data-view="invoices">Invoices</button>
+            <button class="tab" data-view="payment">Payment</button>
+            <button class="tab" data-view="support">Support</button>
+        </section>
+
+        <!-- EXPLORE VIEW -->
+        <section id="viewExplore" class="view">
+            <div class="card">
+                <div class="card__header">
+                    <div>
+                        <h2>Explore storage units</h2>
+                        <p class="subtle">Filter by town, size, and status. Then book instantly.</p>
+                    </div>
+                    <div class="inline">
+                        <button id="btnRefreshUnits" class="btn btn-ghost">Refresh</button>
+                    </div>
+                </div>
+
+                <div class="filters">
+                    <label class="field">
+                        <span class="field__label">Town / City</span>
+                        <input id="fTown" class="input" placeholder="e.g., Cape Town" />
+                    </label>
+
+                    <label class="field">
+                        <span class="field__label">Size</span>
+                        <select id="fSize" class="input">
+                            <option value="">Any</option>
+                            <option value="LOCKER">Locker</option>
+                            <option value="SMALL">Small</option>
+                            <option value="MEDIUM">Medium</option>
+                            <option value="GARAGE">Single garage</option>
+                        </select>
+                    </label>
+
+                    <label class="field">
+                        <span class="field__label">Status</span>
+                        <select id="fStatus" class="input">
+                            <option value="">Any</option>
+                            <option value="Available">Available</option>
+                            <option value="Reserved">Reserved</option>
+                            <option value="Cancelling">Cancelling</option>
+                            <option value="Problem">Problem</option>
+                            <option value="Unavailable">Unavailable</option>
+                        </select>
+                    </label>
+
+                    <label class="field field--grow">
+                        <span class="field__label">Search</span>
+                        <input id="fSearch" class="input" placeholder="Facility name / unit id" />
+                    </label>
+
+                    <button id="btnSearchUnits" class="btn btn-primary" style="align-self: flex-end;">Search</button>
+                </div>
+            </div>
+
+            <div id="unitsGrid" class="grid"></div>
+            <div id="unitsEmpty" class="empty hidden">No units match your filters.</div>
+        </section>
+
+        <!-- RENTALS VIEW -->
+        <section id="viewRentals" class="view hidden">
+            <div class="card">
+                <div class="card__header">
+                    <div>
+                        <h2>My rentals</h2>
+                        <p class="subtle">View your active bookings and manage them.</p>
+                    </div>
+                    <div class="inline">
+                        <button id="btnRefreshRentals" class="btn btn-ghost">Refresh</button>
+                    </div>
+                </div>
+                <div id="rentalsList" class="list"></div>
+                <div id="rentalsEmpty" class="empty hidden">No rentals yet.</div>
+            </div>
+        </section>
+
+        <!-- SHARING VIEW -->
+        <section id="viewSharing" class="view hidden">
+            <div class="card">
+                <div class="card__header">
+                    <div>
+                        <h2>Share requests</h2>
+                        <p class="subtle">Manage incoming share requests and shared users.</p>
+                    </div>
+                    <div class="inline">
+                        <button id="btnRefreshShareRequests" class="btn btn-ghost">Refresh</button>
+                    </div>
+                </div>
+                <div id="shareRequestsList" class="list"></div>
+                <div id="shareRequestsEmpty" class="empty hidden">No share requests.</div>
+            </div>
+
+            <div class="card" style="margin-top: 16px;">
+                <div class="card__header">
+                    <div>
+                        <h2>Request access to a unit</h2>
+                        <p class="subtle">Request access to someone else's unit.</p>
+                    </div>
+                </div>
+                <div style="padding: 16px;">
+                    <div class="filters">
+                        <label class="field field--grow">
+                            <span class="field__label">Unit ID</span>
+                            <input id="requestUnitId" class="input" placeholder="e.g., UNIT-123" />
+                        </label>
+                        <label class="field field--grow">
+                            <span class="field__label">Message (optional)</span>
+                            <input id="requestMessage" class="input" placeholder="Why you need access..." />
+                        </label>
+                        <button id="btnRequestAccess" class="btn btn-primary" style="align-self: flex-end;">Request</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- INVOICES VIEW -->
+        <section id="viewInvoices" class="view hidden">
+            <div class="card">
+                <div class="card__header">
+                    <div>
+                        <h2>Invoices</h2>
+                        <p class="subtle">View your billing history and invoices.</p>
+                    </div>
+                    <div class="inline">
+                        <button id="btnRefreshInvoices" class="btn btn-ghost">Refresh</button>
+                    </div>
+                </div>
+                <div id="invoicesList" class="list"></div>
+                <div id="invoicesEmpty" class="empty hidden">No invoices found.</div>
+            </div>
+        </section>
+
+        <!-- PAYMENT VIEW -->
+        <section id="viewPayment" class="view hidden">
+            <div class="card">
+                <div class="card__header">
+                    <div>
+                        <h2>Payment methods</h2>
+                        <p class="subtle">Manage your payment methods.</p>
+                    </div>
+                    <div class="inline">
+                        <button id="btnAddPayment" class="btn btn-primary">Add new</button>
+                        <button id="btnRefreshPayments" class="btn btn-ghost">Refresh</button>
+                    </div>
+                </div>
+                <div id="paymentsList" class="list"></div>
+                <div id="paymentsEmpty" class="empty hidden">No payment methods.</div>
+            </div>
+        </section>
+
+        <!-- SUPPORT VIEW -->
+        <section id="viewSupport" class="view hidden">
+            <div class="card">
+                <div class="card__header">
+                    <div>
+                        <h2>Support panel</h2>
+                        <p class="subtle">Admin tools for managing units (demo feature).</p>
+                    </div>
+                    <div class="inline">
+                        <button id="btnRefreshSupport" class="btn btn-ghost">Refresh</button>
+                    </div>
+                </div>
+
+                <div class="filters">
+                    <label class="field">
+                        <span class="field__label">Facility ID</span>
+                        <input id="sFacilityId" class="input" placeholder="e.g., FAC-001" />
+                    </label>
+
+                    <label class="field">
+                        <span class="field__label">Status</span>
+                        <select id="sStatus" class="input">
+                            <option value="">Any</option>
+                            <option value="Available">Available</option>
+                            <option value="Reserved">Reserved</option>
+                            <option value="Cancelling">Cancelling</option>
+                            <option value="Problem">Problem</option>
+                            <option value="Unavailable">Unavailable</option>
+                        </select>
+                    </label>
+
+                    <button id="btnSupportSearch" class="btn btn-primary" style="align-self: flex-end;">Search</button>
+
+                    <div class="callout">
+                        <div class="callout__title">Note</div>
+                        <div class="callout__body">
+                            You may gate this view by Cognito groups/roles later. For now it's a UI shell.
+                        </div>
+                    </div>
+                </div>
+
+                <div id="supportList" class="list"></div>
+                <div id="supportEmpty" class="empty hidden">No units found for support filters.</div>
+            </div>
+        </section>
+    </main>
+
+    <!-- BOOK MODAL -->
+    <dialog id="bookModal" class="modal">
+        <form id="bookForm" method="dialog" class="modal__card">
+            <div class="modal__header">
+                <div>
+                    <div class="modal__title">Book unit</div>
+                    <div id="bookUnitMeta" class="modal__subtle">—</div>
+                </div>
+                <button type="button" id="btnCloseBookModal" class="btn btn-ghost">Close</button>
+            </div>
+
+            <div class="modal__body">
+                <div class="grid2">
+                    <label class="field">
+                        <span class="field__label">Start date</span>
+                        <input id="startDate" class="input" type="date" required />
+                    </label>
+
+                    <label class="field">
+                        <span class="field__label">End date (optional)</span>
+                        <input id="endDate" class="input" type="date" />
+                        <span class="field__hint">Leave blank for month-to-month.</span>
+                    </label>
+
+                    <label class="field">
+                        <span class="field__label">Billing option</span>
+                        <select id="billingOption" class="input" required>
+                            <option value="PREPAY">Pre-pay</option>
+                            <option value="RECURRING_MONTHLY">Recurring (monthly)</option>
+                            <option value="RECURRING_YEARLY">Recurring (yearly)</option>
+                        </select>
+                    </label>
+
+                    <label class="field">
+                        <span class="field__label">Payment method</span>
+                        <select id="paymentMethodSelect" class="input" required>
+                            <option value="">Select payment method</option>
+                        </select>
+                        <span class="field__hint">Select from your saved payment methods.</span>
+                    </label>
+                </div>
+
+                <div class="summary">
+                    <div class="kv">
+                        <div class="kv__k">Estimated total</div>
+                        <div id="estimateTotal" class="kv__v strong">—</div>
+                    </div>
+                    <div class="help">
+                        Client-side estimate only. Final price computed server-side.
+                    </div>
+                </div>
+
+                <div id="modalError" class="alert alert-error hidden"></div>
+                <div id="modalOk" class="alert alert-ok hidden"></div>
+            </div>
+
+            <div class="modal__footer">
+                <button id="btnSubmitBooking" value="default" class="btn btn-primary" type="submit">
+                    Confirm booking
+                </button>
+            </div>
+        </form>
+    </dialog>
+
+    <!-- SHARE MODAL -->
+    <dialog id="shareModal" class="modal">
+        <form id="shareForm" method="dialog" class="modal__card">
+            <div class="modal__header">
+                <div>
+                    <div class="modal__title">Share unit access</div>
+                    <div id="shareUnitMeta" class="modal__subtle">—</div>
+                </div>
+                <button type="button" id="btnCloseShareModal" class="btn btn-ghost">Close</button>
+            </div>
+
+            <div class="modal__body">
+                <label class="field">
+                    <span class="field__label">User ID to share with</span>
+                    <input id="shareWithUserId" class="input" placeholder="user-sub-123" required />
+                    <span class="field__hint">Enter the Cognito user ID (sub) of the person.</span>
+                </label>
+
+                <label class="field">
+                    <span class="field__label">Permissions</span>
+                    <select id="sharePermissions" class="input">
+                        <option value="read">Read only</option>
+                        <option value="access">Access (unlock/lock)</option>
+                        <option value="full">Full access</option>
+                    </select>
+                </label>
+
+                <div id="shareModalError" class="alert alert-error hidden"></div>
+                <div id="shareModalOk" class="alert alert-ok hidden"></div>
+            </div>
+
+            <div class="modal__footer">
+                <button class="btn btn-primary" type="submit">Share access</button>
+            </div>
+        </form>
+    </dialog>
+
+    <!-- ADD PAYMENT MODAL -->
+    <dialog id="paymentModal" class="modal">
+        <form id="paymentForm" method="dialog" class="modal__card">
+            <div class="modal__header">
+                <div>
+                    <div class="modal__title">Add payment method</div>
+                </div>
+                <button type="button" id="btnClosePaymentModal" class="btn btn-ghost">Close</button>
+            </div>
+
+            <div class="modal__body">
+                <label class="field">
+                    <span class="field__label">Payment type</span>
+                    <select id="paymentType" class="input" required>
+                        <option value="CARD">Credit/Debit Card</option>
+                        <option value="EFT">EFT</option>
+                    </select>
+                </label>
+
+                <label class="field">
+                    <span class="field__label">Last 4 digits</span>
+                    <input id="paymentLastFour" class="input" placeholder="1234" maxlength="4" required />
+                </label>
+
+                <label class="field">
+                    <span class="field__label">Set as default</span>
+                    <input id="paymentIsDefault" type="checkbox" />
+                </label>
+
+                <div class="help">
+                    This is a demo. Real payment integration should use Stripe/PayPal/etc.
+                </div>
+
+                <div id="paymentModalError" class="alert alert-error hidden"></div>
+                <div id="paymentModalOk" class="alert alert-ok hidden"></div>
+            </div>
+
+            <div class="modal__footer">
+                <button class="btn btn-primary" type="submit">Add payment method</button>
+            </div>
+        </form>
+    </dialog>
+
+    <script type="module" src="js/dashboard-app.js"></script>
+</body>
+</html>

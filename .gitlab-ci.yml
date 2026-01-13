@@ -1,0 +1,36 @@
+stages:
+  - build
+  - deploy
+
+variables:
+  AWS_DEFAULT_REGION: eu-central-1
+  S3_BUCKET: capstone-qixulu-024-sam
+  STACK_NAME: capstone-stack
+
+build_lambda:
+  stage: build
+  image: python:3.12
+  before_script:
+    - pip install --upgrade pip
+    - pip install aws-sam-cli
+  script:
+    - cd backend
+    - sam build
+    - cd ..
+  artifacts:
+    paths:
+      - backend/.aws-sam/
+    expire_in: 1 hour
+
+deploy_lambda:
+  stage: deploy
+  image: python:3.12
+  before_script:
+    - pip install awscli
+  script:
+    - cd backend
+    - aws cloudformation package --template-file .aws-sam/build/template.yaml --s3-bucket "$S3_BUCKET" --output-template-file packaged.yaml
+    - aws cloudformation deploy --template-file packaged.yaml --stack-name "$STACK_NAME" --capabilities CAPABILITY_IAM
+  only:
+    - main
+    - master
