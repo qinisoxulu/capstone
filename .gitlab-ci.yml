@@ -1,10 +1,10 @@
 stages:
   - build
-  - depl oy
+  - deploy
 
 variables:
-  AWS_DEFAULT_REGION: eu-central-1
-  S3_BUCKET: capstone-qixulu-024-sam
+  AWS_DEFAULT_REGION: af-south-1
+  S3_BUCKET: capstone
   STACK_NAME: capstone-stack
 
 build_lambda:

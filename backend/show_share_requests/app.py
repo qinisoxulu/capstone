@@ -1,55 +1,48 @@
+"""
+Show Share Requests - Retrieve share requests for authenticated user's units.
+Returns pending and processed access requests.
+"""
+
 import json
 import boto3
-from boto3.dynamodb.conditions import Attr
+from boto3.dynamodb.conditions import Key
+
+from auth_utils import require_auth
+from response_utils import success_response, server_error
 
 dynamodb = boto3.resource('dynamodb')
 share_requests_table = dynamodb.Table('ShareRequests')
 
-def lambda_handler(event, context):
-    try:
-        # Get user_id from query parameters
-        user_id = event['queryStringParameters']['user_id']
 
-        # Query ShareRequests table for requests to this user's units
-        response = share_requests_table.scan(
-            FilterExpression=Attr('owner_user_id').eq(user_id)
+@require_auth
+def lambda_handler(event, context):
+    """
+    Retrieve share requests for authenticated user's units.
+
+    Returns:
+        API response with list of share requests
+    """
+    try:
+        user_id = event['user_context']['user_id']
+
+        # Query share requests using owner-index GSI
+        response = share_requests_table.query(
+            IndexName='owner-index',
+            KeyConditionExpression=Key('owner_user_id').eq(user_id)
         )
 
         requests = response.get('Items', [])
 
-        return {
-            "statusCode": 200,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*"
-            },
-            "body": json.dumps({
-                "share_requests": requests,
-                "count": len(requests)
-            })
-        }
+        # Sort by created_at descending (most recent first)
+        requests.sort(key=lambda x: x.get('created_at', ''), reverse=True)
 
-    except KeyError:
-        return {
-            "statusCode": 400,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*"
-            },
-            "body": json.dumps({
-                "error": "Missing user_id parameter"
-            })
-        }
+        print(f"Retrieved {len(requests)} share requests for user {user_id}")
+
+        return success_response({
+            "share_requests": requests,
+            "count": len(requests)
+        })
+
     except Exception as e:
-        print(f"Error: {str(e)}")
-        return {
-            "statusCode": 500,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*"
-            },
-            "body": json.dumps({
-                "error": "Failed to retrieve share requests",
-                "message": str(e)
-            })
-        }
+        print(f"Error retrieving share requests: {str(e)}")
+        return server_error()

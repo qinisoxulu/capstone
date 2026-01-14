@@ -1,62 +1,98 @@
+"""
+Trigger Recurring Billing - EventBridge scheduled function.
+Creates monthly invoices for active subscription-based rentals.
+Runs on the 1st of each month at midnight UTC.
+"""
+
 import json
-import boto3
-from datetime import datetime
-from decimal import Decimal
 import uuid
+import boto3
+from datetime import datetime, timedelta
+from decimal import Decimal
+from boto3.dynamodb.conditions import Key, Attr
 
 dynamodb = boto3.resource('dynamodb')
 rentals_table = dynamodb.Table('Rentals')
 invoices_table = dynamodb.Table('Invoices')
 
+
 def lambda_handler(event, context):
     """
-    This function is triggered by EventBridge on a schedule (e.g., monthly).
-    It creates invoices for all active rentals.
+    Create invoices for all active subscription rentals.
+
+    Returns:
+        Summary of invoices created
     """
     try:
-        # Get all active rentals
-        response = rentals_table.scan(
-            FilterExpression='#status = :active',
-            ExpressionAttributeNames={'#status': 'status'},
-            ExpressionAttributeValues={':active': 'active'}
+        # Get current billing period (YYYY-MM)
+        now = datetime.utcnow()
+        billing_period = now.strftime('%Y-%m')
+
+        # Due date: 15th of current month
+        due_date = datetime(now.year, now.month, 15).isoformat()
+
+        # Query active rentals using GSI
+        response = rentals_table.query(
+            IndexName='status-index',
+            KeyConditionExpression=Key('status').eq('active'),
+            FilterExpression=Attr('rental_type').eq('subscription')  # Only subscription rentals
         )
 
         rentals = response.get('Items', [])
         invoices_created = 0
 
+        print(f"Processing {len(rentals)} active subscription rentals for billing period {billing_period}")
+
         for rental in rentals:
             try:
+                # Check if invoice already exists for this rental and billing period
+                # (Idempotency check in case function is triggered multiple times)
+                existing_invoice = invoices_table.query(
+                    IndexName='rental-index',
+                    KeyConditionExpression=Key('rental_id').eq(rental['rental_id']),
+                    FilterExpression=Attr('billing_period').eq(billing_period)
+                )
+
+                if existing_invoice.get('Items'):
+                    print(f"Invoice already exists for rental {rental['rental_id']} in period {billing_period}")
+                    continue
+
                 # Create invoice
                 invoice_id = str(uuid.uuid4())
-                current_date = datetime.utcnow().isoformat()
 
                 invoice = {
                     'invoice_id': invoice_id,
                     'user_id': rental['user_id'],
                     'rental_id': rental['rental_id'],
                     'unit_id': rental['unit_id'],
-                    'facility_id': rental.get('facility_id'),
-                    'amount': rental.get('monthly_price', Decimal('0')),
+                    'facility_id': rental['facility_id'],
+                    'amount': rental['monthly_price'],
                     'status': 'pending',
-                    'due_date': current_date,
-                    'created_at': current_date,
-                    'billing_period': datetime.utcnow().strftime('%Y-%m')
+                    'billing_period': billing_period,
+                    'due_date': due_date,
+                    'created_at': now.isoformat(),
+                    'payment_attempts': 0
                 }
 
                 invoices_table.put_item(Item=invoice)
                 invoices_created += 1
 
-                print(f"Invoice {invoice_id} created for rental {rental['rental_id']}")
+                print(f"Invoice created: {invoice_id} for rental {rental['rental_id']}")
 
             except Exception as rental_error:
+                # Continue processing other rentals if one fails
                 print(f"Error creating invoice for rental {rental.get('rental_id')}: {str(rental_error)}")
                 continue
+
+        message = f"Billing cycle completed. {invoices_created} invoices created for period {billing_period}."
+        print(message)
 
         return {
             "statusCode": 200,
             "body": json.dumps({
-                "message": f"Billing cycle completed. {invoices_created} invoices created.",
-                "invoices_created": invoices_created
+                "message": message,
+                "invoices_created": invoices_created,
+                "billing_period": billing_period
             })
         }
 
@@ -64,8 +100,5 @@ def lambda_handler(event, context):
         print(f"Error in recurring billing: {str(e)}")
         return {
             "statusCode": 500,
-            "body": json.dumps({
-                "error": "Failed to process recurring billing",
-                "message": str(e)
-            })
+            "body": json.dumps({"error": str(e)})
         }

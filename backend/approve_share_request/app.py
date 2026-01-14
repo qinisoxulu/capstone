@@ -1,49 +1,65 @@
+"""
+Approve Share Request - Unit owner approves or denies access requests from others.
+Requires authentication and ownership verification (CRITICAL SECURITY).
+"""
+
 import json
+import uuid
 import boto3
 from datetime import datetime
+
+from auth_utils import require_auth
+from response_utils import success_response, error_response, validation_error, not_found_error, forbidden_error, server_error
 
 dynamodb = boto3.resource('dynamodb')
 share_requests_table = dynamodb.Table('ShareRequests')
 shared_units_table = dynamodb.Table('SharedUnits')
 
+
+@require_auth
 def lambda_handler(event, context):
+    """
+    Process share request approval or denial.
+
+    Path params:
+        - request_id: ID of the share request
+
+    Request body:
+        - action: 'approve' or 'deny'
+
+    Returns:
+        Success or error message
+    """
     try:
-        # Parse request
+        user_id = event['user_context']['user_id']
         request_id = event['pathParameters']['request_id']
         body = json.loads(event['body'])
-        action = body['action']  # 'approve' or 'deny'
+        action = body.get('action')
 
-        # Get share request details
+        # Validate action
+        if action not in ['approve', 'deny']:
+            return validation_error("action must be 'approve' or 'deny'")
+
+        # Get share request
         request_response = share_requests_table.get_item(Key={'request_id': request_id})
 
         if 'Item' not in request_response:
-            return {
-                "statusCode": 404,
-                "headers": {
-                    "Content-Type": "application/json",
-                    "Access-Control-Allow-Origin": "*"
-                },
-                "body": json.dumps({
-                    "error": "Share request not found"
-                })
-            }
+            return not_found_error("Share request")
 
         share_request = request_response['Item']
 
-        if share_request.get('status') != 'pending':
-            return {
-                "statusCode": 400,
-                "headers": {
-                    "Content-Type": "application/json",
-                    "Access-Control-Allow-Origin": "*"
-                },
-                "body": json.dumps({
-                    "error": "Request has already been processed"
-                })
-            }
+        # CRITICAL: Verify ownership - only the unit owner can approve/deny
+        if share_request['owner_user_id'] != user_id:
+            return forbidden_error("You can only process your own share requests")
 
-        # Update share request status
+        if share_request.get('status') != 'pending':
+            return error_response("Request already processed", "This request has already been approved or denied", 400)
+
+        # Process the request
         if action == 'approve':
+            # Generate unique share_id
+            share_id = str(uuid.uuid4())
+
             # Update request status
             share_requests_table.update_item(
                 Key={'request_id': request_id},
@@ -55,9 +71,10 @@ def lambda_handler(event, context):
                 }
             )
 
-            # Add to SharedUnits
+            # Add to SharedUnits with share_id as primary key
             shared_units_table.put_item(
                 Item={
+                    'share_id': share_id,
                     'unit_id': share_request['unit_id'],
                     'user_email': share_request['requester_email'],
                     'granted_by': share_request['owner_user_id'],
@@ -66,18 +83,14 @@ def lambda_handler(event, context):
                 }
             )
 
-            return {
-                "statusCode": 200,
-                "headers": {
-                    "Content-Type": "application/json",
-                    "Access-Control-Allow-Origin": "*"
-                },
-                "body": json.dumps({
-                    "message": "Access request approved"
-                })
-            }
+            print(f"Share request {request_id} approved by {user_id}")
 
-        elif action == 'deny':
+            return success_response({
+                "message": "Access request approved",
+                "share_id": share_id
+            })
+
+        else:  # action == 'deny'
             # Update request status
             share_requests_table.update_item(
                 Key={'request_id': request_id},
@@ -89,50 +102,14 @@ def lambda_handler(event, context):
                 }
             )
 
-            return {
-                "statusCode": 200,
-                "headers": {
-                    "Content-Type": "application/json",
-                    "Access-Control-Allow-Origin": "*"
-                },
-                "body": json.dumps({
-                    "message": "Access request denied"
-                })
-            }
+            print(f"Share request {request_id} denied by {user_id}")
 
-        else:
-            return {
-                "statusCode": 400,
-                "headers": {
-                    "Content-Type": "application/json",
-                    "Access-Control-Allow-Origin": "*"
-                },
-                "body": json.dumps({
-                    "error": "Invalid action. Must be 'approve' or 'deny'"
-                })
-            }
+            return success_response({
+                "message": "Access request denied"
+            })
 
     except KeyError as e:
-        return {
-            "statusCode": 400,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*"
-            },
-            "body": json.dumps({
-                "error": f"Missing required field: {str(e)}"
-            })
-        }
+        return validation_error(f"Missing required field: {str(e)}")
     except Exception as e:
-        print(f"Error: {str(e)}")
-        return {
-            "statusCode": 500,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*"
-            },
-            "body": json.dumps({
-                "error": "Failed to process share request",
-                "message": str(e)
-            })
-        }
+        print(f"Error processing share request: {str(e)}")
+        return server_error()

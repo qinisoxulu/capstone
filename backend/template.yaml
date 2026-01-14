@@ -4,6 +4,20 @@ Description: >
   capstone-sam
   Sample SAM Template for capstone-sam
 
+Parameters:
+  SenderEmail:
+    Type: String
+    Default: noreply@qinisoxulu.com
+    Description: Email address for general notifications and system emails
+  SupportEmail:
+    Type: String
+    Default: support@qinisoxulu.com
+    Description: Email address for support and security notifications
+  InvoicesEmail:
+    Type: String
+    Default: invoices@qinisoxulu.com
+    Description: Email address for invoice-related emails
+
 Globals:
   Function:
     Timeout: 3
@@ -12,6 +26,16 @@ Globals:
       LogFormat: JSON
   Api:
     TracingEnabled: true
+    Cors:
+      AllowOrigin: "'*'"
+      AllowHeaders: "'Content-Type,Authorization'"
+      AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+    Auth:
+      DefaultAuthorizer: CognitoAuthorizer
+      Authorizers:
+        CognitoAuthorizer:
+          UserPoolArn: !GetAtt CognitoUserPool.Arn
+      AddDefaultAuthorizerToCorsPreflight: false
 
 Resources:
   # API Lambda Functions
@@ -23,15 +47,19 @@ Resources:
       Runtime: python3.12
       Architectures:
       - x86_64
+      Layers:
+        - !Ref CommonUtilsLayer
       Policies:
         - DynamoDBReadPolicy:
-            TableName: Facilities
+            TableName: !Ref FacilitiesTable
       Events:
         ShowFacilities:
           Type: Api
           Properties:
             Path: /facilities
             Method: get
+            Auth:
+              Authorizer: NONE  # Public endpoint
 
   ShowFacilityAvailabilityFunction:
     Type: AWS::Serverless::Function
@@ -41,15 +69,19 @@ Resources:
       Runtime: python3.12
       Architectures:
       - x86_64
+      Layers:
+        - !Ref CommonUtilsLayer
       Policies:
         - DynamoDBReadPolicy:
-            TableName: Units
+            TableName: !Ref UnitsTable
       Events:
         ShowFacilityAvailability:
           Type: Api
           Properties:
             Path: /facilities/{facility_id}/availability
             Method: get
+            Auth:
+              Authorizer: NONE  # Public endpoint
 
   ShowUnitDetailsFunction:
     Type: AWS::Serverless::Function
@@ -59,15 +91,19 @@ Resources:
       Runtime: python3.12
       Architectures:
       - x86_64
+      Layers:
+        - !Ref CommonUtilsLayer
       Policies:
         - DynamoDBReadPolicy:
-            TableName: Units
+            TableName: !Ref UnitsTable
       Events:
         ShowUnitDetails:
           Type: Api
           Properties:
             Path: /units/{unit_id}
             Method: get
+            Auth:
+              Authorizer: NONE  # Public endpoint
 
   CreateRentalFunction:
     Type: AWS::Serverless::Function
@@ -77,11 +113,15 @@ Resources:
       Runtime: python3.12
       Architectures:
       - x86_64
+      Layers:
+        - !Ref CommonUtilsLayer
       Policies:
         - DynamoDBCrudPolicy:
-            TableName: Rentals
+            TableName: !Ref RentalsTable
         - DynamoDBCrudPolicy:
-            TableName: Units
+            TableName: !Ref UnitsTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref PaymentMethodsTable
       Events:
         CreateRental:
           Type: Api
@@ -97,11 +137,13 @@ Resources:
       Runtime: python3.12
       Architectures:
       - x86_64
+      Layers:
+        - !Ref CommonUtilsLayer
       Policies:
       - DynamoDBCrudPolicy:
-          TableName: Rentals
+          TableName: !Ref RentalsTable
       - DynamoDBCrudPolicy:
-          TableName: Units
+          TableName: !Ref UnitsTable
       Events:
         DeleteRental:
           Type: Api
@@ -117,13 +159,15 @@ Resources:
       Runtime: python3.12
       Architectures:
       - x86_64
+      Layers:
+        - !Ref CommonUtilsLayer
       Policies:
         - DynamoDBReadPolicy:
-            TableName: Rentals
+            TableName: !Ref RentalsTable
         - DynamoDBReadPolicy:
-            TableName: Units
+            TableName: !Ref UnitsTable
         - DynamoDBReadPolicy:
-            TableName: Facilities
+            TableName: !Ref FacilitiesTable
       Events:
         ShowUserRentals:
           Type: Api
@@ -139,11 +183,13 @@ Resources:
       Runtime: python3.12
       Architectures:
       - x86_64
+      Layers:
+        - !Ref CommonUtilsLayer
       Policies:
         - DynamoDBCrudPolicy:
-            TableName: SharedUnits
+            TableName: !Ref SharedUnitsTable
         - DynamoDBReadPolicy:
-            TableName: Rentals
+            TableName: !Ref RentalsTable
       Events:
         ShareUnitAccess:
           Type: Api
@@ -159,13 +205,15 @@ Resources:
       Runtime: python3.12
       Architectures:
       - x86_64
+      Layers:
+        - !Ref CommonUtilsLayer
       Policies:
         - DynamoDBCrudPolicy:
-            TableName: ShareRequests
+            TableName: !Ref ShareRequestsTable
         - DynamoDBReadPolicy:
-            TableName: Units
+            TableName: !Ref UnitsTable
         - DynamoDBReadPolicy:
-            TableName: Rentals
+            TableName: !Ref RentalsTable
       Events:
         RequestUnitAccess:
           Type: Api
@@ -181,9 +229,11 @@ Resources:
       Runtime: python3.12
       Architectures:
       - x86_64
+      Layers:
+        - !Ref CommonUtilsLayer
       Policies:
         - DynamoDBReadPolicy:
-            TableName: ShareRequests
+            TableName: !Ref ShareRequestsTable
       Events:
         ShowShareRequests:
           Type: Api
@@ -199,11 +249,13 @@ Resources:
       Runtime: python3.12
       Architectures:
       - x86_64
+      Layers:
+        - !Ref CommonUtilsLayer
       Policies:
         - DynamoDBCrudPolicy:
-            TableName: ShareRequests
+            TableName: !Ref ShareRequestsTable
         - DynamoDBCrudPolicy:
-            TableName: SharedUnits
+            TableName: !Ref SharedUnitsTable
       Events:
         ApproveShareRequest:
           Type: Api
@@ -219,9 +271,11 @@ Resources:
       Runtime: python3.12
       Architectures:
       - x86_64
+      Layers:
+        - !Ref CommonUtilsLayer
       Policies:
         - DynamoDBReadPolicy:
-            TableName: SharedUnits
+            TableName: !Ref SharedUnitsTable
       Events:
         ShowSharedUsers:
           Type: Api
@@ -237,9 +291,11 @@ Resources:
       Runtime: python3.12
       Architectures:
       - x86_64
+      Layers:
+        - !Ref CommonUtilsLayer
       Policies:
-        - DynamoDBCrudPolicy:
-            TableName: Invoices
+        - DynamoDBReadPolicy:
+            TableName: !Ref InvoicesTable
       Events:
         SelectInvoices:
           Type: Api
@@ -255,15 +311,19 @@ Resources:
       Runtime: python3.12
       Architectures:
       - x86_64
+      Layers:
+        - !Ref CommonUtilsLayer
       Policies:
         - DynamoDBReadPolicy:
-            TableName: Units
+            TableName: !Ref UnitsTable
       Events:
         ShowUnitPricing:
           Type: Api
           Properties:
             Path: /units/{unit_id}/pricing
             Method: get
+            Auth:
+              Authorizer: NONE  # Public endpoint
 
   UpsertPaymentMethodFunction:
     Type: AWS::Serverless::Function
@@ -273,9 +333,11 @@ Resources:
       Runtime: python3.12
       Architectures:
       - x86_64
+      Layers:
+        - !Ref CommonUtilsLayer
       Policies:
         - DynamoDBCrudPolicy:
-            TableName: PaymentMethods
+            TableName: !Ref PaymentMethodsTable
       Events:
         UpsertPaymentMethod:
           Type: Api
@@ -291,9 +353,11 @@ Resources:
       Runtime: python3.12
       Architectures:
       - x86_64
+      Layers:
+        - !Ref CommonUtilsLayer
       Policies:
         - DynamoDBReadPolicy:
-            TableName: PaymentMethods
+            TableName: !Ref PaymentMethodsTable
       Events:
         ShowPaymentMethods:
           Type: Api
@@ -309,9 +373,12 @@ Resources:
       Runtime: python3.12
       Architectures:
       - x86_64
+      Environment:
+        Variables:
+          SENDER_EMAIL: !Ref SenderEmail
       Policies:
         - DynamoDBCrudPolicy:
-            TableName: Users
+            TableName: !Ref UsersTable
         - SESCrudPolicy:
             IdentityName: "*"
 
@@ -323,13 +390,15 @@ Resources:
       Runtime: python3.12
       Architectures:
       - x86_64
+      Layers:
+        - !Ref CommonUtilsLayer
       Policies:
         - DynamoDBReadPolicy:
-            TableName: Rentals
+            TableName: !Ref RentalsTable
         - DynamoDBReadPolicy:
-            TableName: SharedUnits
+            TableName: !Ref SharedUnitsTable
         - DynamoDBCrudPolicy:
-            TableName: AccessEvents
+            TableName: !Ref AccessEventsTable
       Events:
         UnitAccessControl:
           Type: Api
@@ -345,15 +414,18 @@ Resources:
       Runtime: python3.12
       Architectures:
       - x86_64
+      Environment:
+        Variables:
+          SUPPORT_EMAIL: !Ref SupportEmail
       Policies:
         - DynamoDBReadPolicy:
-            TableName: Rentals
+            TableName: !Ref RentalsTable
         - DynamoDBReadPolicy:
-            TableName: Users
+            TableName: !Ref UsersTable
         - SESCrudPolicy:
             IdentityName: "*"
         - DynamoDBStreamReadPolicy:
-            TableName: AccessEvents
+            TableName: !Ref AccessEventsTable
             StreamName: "*"
 
   TriggerRecurringBillingFunction:
@@ -366,9 +438,9 @@ Resources:
       - x86_64
       Policies:
         - DynamoDBReadPolicy:
-            TableName: Rentals
+            TableName: !Ref RentalsTable
         - DynamoDBCrudPolicy:
-            TableName: Invoices
+            TableName: !Ref InvoicesTable
       Events:
         MonthlySchedule:
           Type: Schedule
@@ -384,14 +456,408 @@ Resources:
       Runtime: python3.12
       Architectures:
       - x86_64
+      Environment:
+        Variables:
+          INVOICES_EMAIL: !Ref InvoicesEmail
       Policies:
         - DynamoDBReadPolicy:
-            TableName: Users
+            TableName: !Ref UsersTable
         - SESCrudPolicy:
             IdentityName: "*"
         - DynamoDBStreamReadPolicy:
-            TableName: Invoices
+            TableName: !Ref InvoicesTable
             StreamName: "*"
+
+  # SES Resources
+  SESConfigurationSet:
+    Type: AWS::SES::ConfigurationSet
+    Properties:
+      Name: !Sub "${AWS::StackName}-config-set"
+
+  SenderEmailIdentity:
+    Type: AWS::SES::EmailIdentity
+    Properties:
+      EmailIdentity: !Ref SenderEmail
+      ConfigurationSetAttributes:
+        ConfigurationSetName: !Ref SESConfigurationSet
+
+  SupportEmailIdentity:
+    Type: AWS::SES::EmailIdentity
+    Properties:
+      EmailIdentity: !Ref SupportEmail
+      ConfigurationSetAttributes:
+        ConfigurationSetName: !Ref SESConfigurationSet
+
+  InvoicesEmailIdentity:
+    Type: AWS::SES::EmailIdentity
+    Properties:
+      EmailIdentity: !Ref InvoicesEmail
+      ConfigurationSetAttributes:
+        ConfigurationSetName: !Ref SESConfigurationSet
+
+  # Lambda Layer for common utilities
+  CommonUtilsLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: common-utils
+      Description: Common utilities for authentication and responses
+      ContentUri: layers/common/
+      CompatibleRuntimes:
+        - python3.12
+      RetentionPolicy: Retain
+    Metadata:
+      BuildMethod: python3.12
+
+  # DynamoDB Tables
+  FacilitiesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Facilities
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: facility_id
+          AttributeType: S
+        - AttributeName: city
+          AttributeType: S
+        - AttributeName: status
+          AttributeType: S
+      KeySchema:
+        - AttributeName: facility_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: city-index
+          KeySchema:
+            - AttributeName: city
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+        - IndexName: status-index
+          KeySchema:
+            - AttributeName: status
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+  UnitsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Units
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: unit_id
+          AttributeType: S
+        - AttributeName: facility_id
+          AttributeType: S
+        - AttributeName: status
+          AttributeType: S
+      KeySchema:
+        - AttributeName: unit_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: facility-status-index
+          KeySchema:
+            - AttributeName: facility_id
+              KeyType: HASH
+            - AttributeName: status
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+  RentalsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Rentals
+      BillingMode: PAY_PER_REQUEST
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      AttributeDefinitions:
+        - AttributeName: rental_id
+          AttributeType: S
+        - AttributeName: user_id
+          AttributeType: S
+        - AttributeName: status
+          AttributeType: S
+        - AttributeName: unit_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: rental_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: user-index
+          KeySchema:
+            - AttributeName: user_id
+              KeyType: HASH
+            - AttributeName: status
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: unit-index
+          KeySchema:
+            - AttributeName: unit_id
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+        - IndexName: status-index
+          KeySchema:
+            - AttributeName: status
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+  InvoicesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Invoices
+      BillingMode: PAY_PER_REQUEST
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      AttributeDefinitions:
+        - AttributeName: invoice_id
+          AttributeType: S
+        - AttributeName: user_id
+          AttributeType: S
+        - AttributeName: status
+          AttributeType: S
+        - AttributeName: created_at
+          AttributeType: S
+        - AttributeName: rental_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: invoice_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: user-index
+          KeySchema:
+            - AttributeName: user_id
+              KeyType: HASH
+            - AttributeName: created_at
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: status-index
+          KeySchema:
+            - AttributeName: status
+              KeyType: HASH
+            - AttributeName: created_at
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: rental-index
+          KeySchema:
+            - AttributeName: rental_id
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+  PaymentMethodsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: PaymentMethods
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: payment_method_id
+          AttributeType: S
+        - AttributeName: user_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: payment_method_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: user-index
+          KeySchema:
+            - AttributeName: user_id
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+  ShareRequestsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ShareRequests
+      BillingMode: PAY_PER_REQUEST
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      AttributeDefinitions:
+        - AttributeName: request_id
+          AttributeType: S
+        - AttributeName: owner_user_id
+          AttributeType: S
+        - AttributeName: status
+          AttributeType: S
+      KeySchema:
+        - AttributeName: request_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: owner-index
+          KeySchema:
+            - AttributeName: owner_user_id
+              KeyType: HASH
+            - AttributeName: status
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+  SharedUnitsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: SharedUnits
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: share_id
+          AttributeType: S
+        - AttributeName: unit_id
+          AttributeType: S
+        - AttributeName: user_email
+          AttributeType: S
+      KeySchema:
+        - AttributeName: share_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: unit-index
+          KeySchema:
+            - AttributeName: unit_id
+              KeyType: HASH
+            - AttributeName: user_email
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+  AccessEventsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: AccessEvents
+      BillingMode: PAY_PER_REQUEST
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      AttributeDefinitions:
+        - AttributeName: event_id
+          AttributeType: S
+        - AttributeName: unit_id
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: S
+      KeySchema:
+        - AttributeName: event_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: unit-index
+          KeySchema:
+            - AttributeName: unit_id
+              KeyType: HASH
+            - AttributeName: timestamp
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+  UsersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Users
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: user_id
+          AttributeType: S
+        - AttributeName: email
+          AttributeType: S
+        - AttributeName: user_type
+          AttributeType: S
+      KeySchema:
+        - AttributeName: user_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: email-index
+          KeySchema:
+            - AttributeName: email
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+        - IndexName: user_type-index
+          KeySchema:
+            - AttributeName: user_type
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+  # Cognito User Pool
+  CognitoUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub "${AWS::StackName}-user-pool"
+      UsernameAttributes:
+        - email
+      AutoVerifiedAttributes:
+        - email
+      Schema:
+        - Name: email
+          AttributeDataType: String
+          Required: true
+          Mutable: false
+        - Name: user_type
+          AttributeDataType: String
+          Required: false
+          Mutable: true
+        - Name: full_name
+          AttributeDataType: String
+          Required: false
+          Mutable: true
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireUppercase: true
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+      LambdaConfig:
+        PostConfirmation: !GetAtt TriggerOnUserCreatedFunction.Arn
+
+  CognitoUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref CognitoUserPool
+      ClientName: !Sub "${AWS::StackName}-web-client"
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      ReadAttributes:
+        - email
+        - custom:user_type
+        - custom:full_name
+
+  CognitoUserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: !Sub "${AWS::StackName}-${AWS::AccountId}"
+      UserPoolId: !Ref CognitoUserPool
+
+  CognitoTriggerPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref TriggerOnUserCreatedFunction
+      Principal: cognito-idp.amazonaws.com
+      Action: lambda:InvokeFunction
+      SourceArn: !GetAtt CognitoUserPool.Arn
 
   ApplicationResourceGroup:
     Type: AWS::ResourceGroups::Group
@@ -411,3 +877,21 @@ Outputs:
   ApiGatewayUrl:
     Description: API Gateway endpoint URL for Prod stage
     Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/Prod/"
+
+  UserPoolId:
+    Description: Cognito User Pool ID
+    Value: !Ref CognitoUserPool
+    Export:
+      Name: !Sub "${AWS::StackName}-UserPoolId"
+
+  UserPoolClientId:
+    Description: Cognito User Pool Client ID
+    Value: !Ref CognitoUserPoolClient
+    Export:
+      Name: !Sub "${AWS::StackName}-UserPoolClientId"
+
+  CognitoDomain:
+    Description: Cognito Hosted UI Domain
+    Value: !Sub "https://${CognitoUserPoolDomain}.auth.${AWS::Region}.amazoncognito.com"
+    Export:
+      Name: !Sub "${AWS::StackName}-CognitoDomain"

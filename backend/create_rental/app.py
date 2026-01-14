@@ -1,85 +1,113 @@
+"""
+Create Rental - Allow authenticated users to book storage units.
+Supports both subscription-based and one-time rentals.
+"""
+
 import json
+import os
+import uuid
 import boto3
 from datetime import datetime
 from decimal import Decimal
-import uuid
+from boto3.dynamodb.conditions import Key, Attr
+
+# Import from Lambda layer
+from auth_utils import require_auth
+from response_utils import success_response, error_response, validation_error, not_found_error, forbidden_error, server_error
 
 dynamodb = boto3.resource('dynamodb')
-rentals_table = dynamodb.Table('Rentals')
 units_table = dynamodb.Table('Units')
+rentals_table = dynamodb.Table('Rentals')
+payment_methods_table = dynamodb.Table('PaymentMethods')
 
+
+@require_auth
 def lambda_handler(event, context):
+    """
+    Create a new rental for the authenticated user.
+
+    Request Body:
+        - unit_id (required): ID of the unit to rent
+        - payment_method_id (required): ID of the payment method to use
+        - rental_type (optional): 'subscription' or 'one-time', defaults to 'subscription'
+
+    Returns:
+        API response with rental details or error
+    """
     try:
+        # Extract authenticated user from Cognito claims
+        user_id = event['user_context']['user_id']
+
         # Parse request body
         body = json.loads(event['body'])
-        user_id = body['user_id']
-        unit_id = body['unit_id']
+        unit_id = body.get('unit_id')
         payment_method_id = body.get('payment_method_id')
+        rental_type = body.get('rental_type', 'subscription')  # Default to subscription
 
-        # Check if unit is available
+        # Validate required fields
+        if not unit_id:
+            return validation_error("unit_id is required")
+
+        if not payment_method_id:
+            return validation_error("payment_method_id is required")
+
+        if rental_type not in ['subscription', 'one-time']:
+            return validation_error("rental_type must be 'subscription' or 'one-time'")
+
+        # Validate payment method belongs to authenticated user
+        pm_response = payment_methods_table.query(
+            IndexName='user-index',
+            KeyConditionExpression=Key('user_id').eq(user_id),
+            FilterExpression=Attr('payment_method_id').eq(payment_method_id)
+        )
+
+        if not pm_response.get('Items'):
+            return forbidden_error("Invalid payment method")
+
+        # Get unit details and verify it's available
         unit_response = units_table.get_item(Key={'unit_id': unit_id})
 
         if 'Item' not in unit_response:
-            return {
-                "statusCode": 404,
-                "headers": {
-                    "Content-Type": "application/json",
-                    "Access-Control-Allow-Origin": "*"
-                },
-                "body": json.dumps({
-                    "error": "Unit not found"
-                })
-            }
+            return not_found_error("Unit")
 
         unit = unit_response['Item']
 
         if unit.get('status') != 'available':
-            return {
-                "statusCode": 400,
-                "headers": {
-                    "Content-Type": "application/json",
-                    "Access-Control-Allow-Origin": "*"
-                },
-                "body": json.dumps({
-                    "error": "Unit is not available for rent"
-                })
-            }
+            return error_response("Unit unavailable", "This unit is already rented or unavailable", 400)
 
-        # Create rental record
+        # Create rental with atomic transaction
         rental_id = str(uuid.uuid4())
-        rental_start_date = datetime.utcnow().isoformat()
+        now = datetime.utcnow().isoformat()
 
-        rental_item = {
+        rental = {
             'rental_id': rental_id,
             'user_id': user_id,
             'unit_id': unit_id,
-            'facility_id': unit.get('facility_id'),
-            'start_date': rental_start_date,
+            'facility_id': unit['facility_id'],
+            'start_date': now,
             'status': 'active',
+            'rental_type': rental_type,
             'payment_method_id': payment_method_id,
-            'monthly_price': unit.get('price', Decimal('0')),
-            'created_at': rental_start_date
+            'monthly_price': unit['price'],
+            'created_at': now
         }
 
-        # Use DynamoDB transaction to atomically create rental and update unit
-        client = boto3.client('dynamodb')
+        # Use transaction to atomically create rental and update unit status
+        dynamodb_client = boto3.client('dynamodb')
 
-        response = client.transact_write_items(
+        # Helper function to convert Decimal to DynamoDB format
+        def to_dynamodb_format(value):
+            if isinstance(value, Decimal):
+                return {'N': str(value)}
+            return {'S': str(value)}
+
+        dynamodb_client.transact_write_items(
             TransactItems=[
                 {
                     'Put': {
                         'TableName': 'Rentals',
-                        'Item': {
-                            'rental_id': {'S': rental_id},
-                            'user_id': {'S': user_id},
-                            'unit_id': {'S': unit_id},
-                            'facility_id': {'S': str(unit.get('facility_id', ''))},
-                            'start_date': {'S': rental_start_date},
-                            'status': {'S': 'active'},
-                            'payment_method_id': {'S': payment_method_id or ''},
-                            'monthly_price': {'N': str(unit.get('price', 0))},
-                            'created_at': {'S': rental_start_date}
-                        }
+                        'Item': {k: to_dynamodb_format(v) for k, v in rental.items()},
+                        'ConditionExpression': 'attribute_not_exists(rental_id)'
                     }
                 },
                 {
@@ -87,52 +115,28 @@ def lambda_handler(event, context):
                         'TableName': 'Units',
                         'Key': {'unit_id': {'S': unit_id}},
                         'UpdateExpression': 'SET #status = :rented, rented_by = :user_id',
-                        'ExpressionAttributeNames': {
-                            '#status': 'status'
-                        },
+                        'ExpressionAttributeNames': {'#status': 'status'},
                         'ExpressionAttributeValues': {
                             ':rented': {'S': 'rented'},
-                            ':user_id': {'S': user_id}
-                        }
+                            ':user_id': {'S': user_id},
+                            ':available': {'S': 'available'}
+                        },
+                        'ConditionExpression': '#status = :available'
                     }
                 }
             ]
         )
 
-        return {
-            "statusCode": 201,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*"
-            },
-            "body": json.dumps({
-                "message": "Rental created successfully",
-                "rental_id": rental_id,
-                "rental": rental_item
-            })
-        }
+        print(f"Rental created: {rental_id} - User: {user_id}, Unit: {unit_id}, Type: {rental_type}")
+
+        return success_response({
+            "message": "Rental created successfully",
+            "rental_id": rental_id,
+            "rental": rental
+        }, 201)
 
     except KeyError as e:
-        return {
-            "statusCode": 400,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*"
-            },
-            "body": json.dumps({
-                "error": f"Missing required field: {str(e)}"
-            })
-        }
+        return validation_error(f"Missing required field: {str(e)}")
     except Exception as e:
-        print(f"Error: {str(e)}")
-        return {
-            "statusCode": 500,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*"
-            },
-            "body": json.dumps({
-                "error": "Failed to create rental",
-                "message": str(e)
-            })
-        }
+        print(f"Error creating rental: {str(e)}")
+        return server_error()
