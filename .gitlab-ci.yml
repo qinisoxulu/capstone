@@ -12,31 +12,20 @@ bootstrap_infra:
   stage: bootstrap
   image: amazon/aws-cli:latest
   script:
+    - echo "Checking if bootstrap stack exists..."
     - |
-      # Check if bootstrap stack exists
       if aws cloudformation describe-stacks --stack-name "$BOOTSTRAP_STACK_NAME" 2>/dev/null; then
-        echo "Bootstrap stack exists, checking for updates..."
-        aws cloudformation update-stack \
-          --stack-name "$BOOTSTRAP_STACK_NAME" \
-          --template-body file://backend/bootstrap-template.yaml \
-          --capabilities CAPABILITY_IAM 2>/dev/null || echo "No updates needed or stack is up to date"
+        echo "Stack exists, updating..."
+        aws cloudformation update-stack --stack-name "$BOOTSTRAP_STACK_NAME" --template-body file://backend/bootstrap-template.yaml --capabilities CAPABILITY_IAM 2>/dev/null || echo "No updates needed"
         aws cloudformation wait stack-update-complete --stack-name "$BOOTSTRAP_STACK_NAME" 2>/dev/null || true
       else
-        echo "Creating bootstrap stack..."
-        aws cloudformation create-stack \
-          --stack-name "$BOOTSTRAP_STACK_NAME" \
-          --template-body file://backend/bootstrap-template.yaml \
-          --capabilities CAPABILITY_IAM
-        echo "Waiting for stack creation to complete..."
+        echo "Creating stack..."
+        aws cloudformation create-stack --stack-name "$BOOTSTRAP_STACK_NAME" --template-body file://backend/bootstrap-template.yaml --capabilities CAPABILITY_IAM
         aws cloudformation wait stack-create-complete --stack-name "$BOOTSTRAP_STACK_NAME"
       fi
     - |
-      # Export bucket name for other stages
-      S3_BUCKET=$(aws cloudformation describe-stacks \
-        --stack-name "$BOOTSTRAP_STACK_NAME" \
-        --query "Stacks[0].Outputs[?OutputKey=='DeploymentBucketName'].OutputValue" \
-        --output text)
-      echo "Deployment bucket: $S3_BUCKET"
+      S3_BUCKET=$(aws cloudformation describe-stacks --stack-name "$BOOTSTRAP_STACK_NAME" --query "Stacks[0].Outputs[?OutputKey=='DeploymentBucketName'].OutputValue" --output text)
+      echo "Bucket: $S3_BUCKET"
       echo "S3_BUCKET=$S3_BUCKET" >> build.env
   artifacts:
     reports:
@@ -78,7 +67,7 @@ deploy_lambda:
   before_script:
     - pip install awscli
   script:
-    - echo "Using deployment bucket: $S3_BUCKET"
+    - echo "Using bucket $S3_BUCKET"
     - cd backend
     - aws cloudformation package --template-file .aws-sam/build/template.yaml --s3-bucket "$S3_BUCKET" --output-template-file packaged.yaml
     - aws cloudformation deploy --template-file packaged.yaml --stack-name "$STACK_NAME" --capabilities CAPABILITY_IAM --no-fail-on-empty-changeset
