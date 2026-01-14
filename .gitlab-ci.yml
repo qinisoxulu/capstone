@@ -10,7 +10,9 @@ variables:
 
 bootstrap_infra:
   stage: bootstrap
-  image: amazon/aws-cli:latest
+  image: python:3.12
+  before_script:
+    - pip install awscli --quiet
   script:
     - echo "Checking if bootstrap stack exists..."
     - |
