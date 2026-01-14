@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Facility Details - Capstone</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="container">
+      <a href="index.html" class="navbar-brand">Capstone</a>
+      <div class="navbar-nav">
+        <a href="index.html#facilities" class="nav-link">Facilities</a>
+        <a href="index.html#features" class="nav-link">Features</a>
+        <a href="dashboard.html" class="nav-link hidden" id="dashboard-link">Dashboard</a>
+        <a href="#" class="btn btn-primary" id="auth-btn">Sign Up</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Page Header -->
+  <header class="page-header">
+    <div class="container">
+      <a href="index.html" class="back-link">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="19" y1="12" x2="5" y2="12"/>
+          <polyline points="12 19 5 12 12 5"/>
+        </svg>
+        Back to Facilities
+      </a>
+      <h1 id="facility-name">Loading...</h1>
+      <div class="location" id="facility-location">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+          <circle cx="12" cy="10" r="3"/>
+        </svg>
+        <span id="facility-address"></span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Facility Image -->
+  <section class="container">
+    <img id="facility-image" src="" alt="" class="facility-hero hidden">
+  </section>
+
+  <!-- Units Section -->
+  <section class="section">
+    <div class="container">
+      <div class="section-header">
+        <h2>Available Units</h2>
+        <p id="units-count">Loading available units...</p>
+      </div>
+
+      <!-- Filter Bar -->
+      <div class="filter-bar">
+        <div class="filter-group">
+          <label for="size-filter">Size</label>
+          <select id="size-filter">
+            <option value="">All Sizes</option>
+            <option value="small">Small (5 sqm)</option>
+            <option value="medium">Medium (10 sqm)</option>
+            <option value="large">Large (20 sqm)</option>
+            <option value="extra-large">Extra Large (40 sqm)</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="price-filter">Max Price</label>
+          <select id="price-filter">
+            <option value="">Any Price</option>
+            <option value="500">Under R500</option>
+            <option value="1000">Under R1000</option>
+            <option value="1500">Under R1500</option>
+            <option value="2000">Under R2000</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Units Grid -->
+      <div id="units-grid" class="grid grid-4">
+        <!-- Loading state -->
+        <div class="loading" id="units-loading">
+          <div class="spinner"></div>
+          <p>Loading units...</p>
+        </div>
+      </div>
+
+      <!-- Empty state -->
+      <div class="empty-state hidden" id="units-empty">
+        <h3>No units available</h3>
+        <p>Try adjusting your filters or check back later.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-content">
+        <div class="footer-brand">Capstone</div>
+        <div class="footer-links">
+          <a href="index.html#facilities">Facilities</a>
+          <a href="index.html#features">Features</a>
+          <a href="#">Contact</a>
+          <a href="#">Privacy</a>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>&copy; 2026 Capstone Storage. All rights reserved.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script type="module">
+    import { initAuth, isAuthenticated, signup } from './js/auth.js';
+    import { getFacilities, getFacilityAvailability } from './js/api.js';
+
+    // Initialize authentication
+    initAuth();
+
+    // Get facility ID from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const facilityId = urlParams.get('id');
+
+    if (!facilityId) {
+      window.location.href = 'index.html';
+    }
+
+    // DOM Elements
+    const facilityName = document.getElementById('facility-name');
+    const facilityAddress = document.getElementById('facility-address');
+    const facilityImage = document.getElementById('facility-image');
+    const unitsCount = document.getElementById('units-count');
+    const unitsGrid = document.getElementById('units-grid');
+    const unitsLoading = document.getElementById('units-loading');
+    const unitsEmpty = document.getElementById('units-empty');
+    const sizeFilter = document.getElementById('size-filter');
+    const priceFilter = document.getElementById('price-filter');
+
+    let allUnits = [];
+    let facilityData = null;
+
+    // Load facility details
+    async function loadFacilityDetails() {
+      try {
+        const response = await getFacilities();
+        const facilities = response.facilities || [];
+        facilityData = facilities.find(f => f.facility_id === facilityId);
+
+        if (!facilityData) {
+          window.location.href = 'index.html';
+          return;
+        }
+
+        // Update page with facility info
+        facilityName.textContent = facilityData.name;
+        facilityAddress.textContent = `${facilityData.address}, ${facilityData.city}`;
+        document.title = `${facilityData.name} - Capstone`;
+
+        if (facilityData.image_url) {
+          facilityImage.src = facilityData.image_url;
+          facilityImage.alt = facilityData.name;
+          facilityImage.classList.remove('hidden');
+        }
+
+      } catch (error) {
+        console.error('Error loading facility details:', error);
+      }
+    }
+
+    // Load available units
+    async function loadUnits() {
+      unitsLoading.classList.remove('hidden');
+      unitsEmpty.classList.add('hidden');
+
+      // Clear existing cards
+      const cards = unitsGrid.querySelectorAll('.unit-card');
+      cards.forEach(card => card.remove());
+
+      try {
+        const response = await getFacilityAvailability(facilityId);
+        allUnits = response.available_units || [];
+
+        unitsLoading.classList.add('hidden');
+
+        // Apply filters and render
+        filterAndRenderUnits();
+
+      } catch (error) {
+        console.error('Error loading units:', error);
+        unitsLoading.classList.add('hidden');
+        unitsEmpty.classList.remove('hidden');
+        unitsEmpty.querySelector('h3').textContent = 'Error loading units';
+        unitsEmpty.querySelector('p').textContent = 'Please try again later.';
+      }
+    }
+
+    // Filter and render units
+    function filterAndRenderUnits() {
+      const sizeValue = sizeFilter.value;
+      const priceValue = priceFilter.value ? parseInt(priceFilter.value) : null;
+
+      // Clear existing cards
+      const cards = unitsGrid.querySelectorAll('.unit-card');
+      cards.forEach(card => card.remove());
+
+      let filteredUnits = allUnits;
+
+      // Apply size filter
+      if (sizeValue) {
+        filteredUnits = filteredUnits.filter(unit => unit.size === sizeValue);
+      }
+
+      // Apply price filter
+      if (priceValue) {
+        filteredUnits = filteredUnits.filter(unit => parseFloat(unit.price) <= priceValue);
+      }
+
+      // Update count
+      unitsCount.textContent = `${filteredUnits.length} units available`;
+
+      if (filteredUnits.length === 0) {
+        unitsEmpty.classList.remove('hidden');
+        unitsEmpty.querySelector('h3').textContent = 'No matching units';
+        unitsEmpty.querySelector('p').textContent = 'Try adjusting your filters.';
+        return;
+      }
+
+      unitsEmpty.classList.add('hidden');
+
+      // Render unit cards
+      filteredUnits.forEach(unit => {
+        const card = createUnitCard(unit);
+        unitsGrid.appendChild(card);
+      });
+    }
+
+    // Create unit card element
+    function createUnitCard(unit) {
+      const card = document.createElement('div');
+      card.className = 'card unit-card';
+
+      const imageUrl = unit.image_url || 'https://images.unsplash.com/photo-1600566752355-35792bedcfea?w=400';
+      const isAvailable = unit.status === 'available';
+      const badgeClass = isAvailable ? 'badge-available' : 'badge-rented';
+      const badgeText = isAvailable ? 'Available' : 'Rented';
+      const sizeSqm = unit.size_sqm || getSizeInSqm(unit.size);
+      const price = parseFloat(unit.price).toLocaleString();
+
+      card.innerHTML = `
+        <img src="${imageUrl}" alt="${unit.name}" class="card-image" loading="lazy">
+        <div class="card-body">
+          <span class="card-badge ${badgeClass}">${badgeText}</span>
+          <h3 class="card-title">${unit.name || unit.unit_number || 'Storage Unit'}</h3>
+          <div class="unit-details">
+            <span class="unit-detail"><strong>${sizeSqm}</strong> sqm</span>
+            <span class="unit-detail"><strong>${unit.size || 'Standard'}</strong></span>
+          </div>
+          <div class="card-meta">
+            <span class="card-price">R${price}<span>/month</span></span>
+            ${isAvailable ? `<button class="btn btn-sm btn-primary" onclick="handleBookNow('${unit.unit_id}')">Book Now</button>` : '<span class="text-muted">Not Available</span>'}
+          </div>
+        </div>
+      `;
+
+      return card;
+    }
+
+    // Get size in sqm based on size label
+    function getSizeInSqm(size) {
+      const sizes = {
+        'small': 5,
+        'medium': 10,
+        'large': 20,
+        'extra-large': 40
+      };
+      return sizes[size] || 10;
+    }
+
+    // Handle Book Now button click
+    window.handleBookNow = function(unitId) {
+      if (!isAuthenticated()) {
+        // Redirect to sign up
+        signup();
+        return;
+      }
+      // Redirect to booking flow (dashboard)
+      window.location.href = `dashboard.html?action=book&unit=${unitId}`;
+    };
+
+    // Filter handlers
+    sizeFilter.addEventListener('change', filterAndRenderUnits);
+    priceFilter.addEventListener('change', filterAndRenderUnits);
+
+    // Initial load
+    loadFacilityDetails();
+    loadUnits();
+  </script>
+</body>
+</html>

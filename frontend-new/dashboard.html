@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - Capstone</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="container">
+      <a href="index.html" class="navbar-brand">Capstone</a>
+      <div class="navbar-nav">
+        <a href="index.html#facilities" class="nav-link">Facilities</a>
+        <a href="index.html#features" class="nav-link">Features</a>
+        <a href="dashboard.html" class="nav-link" id="dashboard-link">Dashboard</a>
+        <a href="#" class="btn btn-secondary" id="logout-btn">Logout</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Dashboard Header -->
+  <header class="dashboard-header">
+    <div class="container">
+      <div class="user-profile">
+        <div class="user-avatar" id="user-avatar">U</div>
+        <div class="user-info">
+          <span class="user-name" id="user-name">Loading...</span>
+          <span class="user-email" id="user-email"></span>
+        </div>
+      </div>
+      <h1>Dashboard</h1>
+      <p>Manage your storage units and rentals</p>
+
+      <nav class="dashboard-nav">
+        <a href="#" class="dashboard-nav-item active" data-tab="rentals">My Rentals</a>
+        <a href="#" class="dashboard-nav-item" data-tab="invoices">Invoices</a>
+        <a href="#" class="dashboard-nav-item" data-tab="sharing">Sharing</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Dashboard Content -->
+  <main class="dashboard-content">
+    <div class="container">
+      <!-- Rentals Tab -->
+      <section id="tab-rentals">
+        <div class="section-header" style="text-align: left; margin-bottom: 24px;">
+          <h3>Active Rentals</h3>
+        </div>
+
+        <div id="rentals-list">
+          <div class="loading" id="rentals-loading">
+            <div class="spinner"></div>
+            <p>Loading rentals...</p>
+          </div>
+        </div>
+
+        <div class="empty-state hidden" id="rentals-empty">
+          <h3>No active rentals</h3>
+          <p>You haven't rented any storage units yet.</p>
+          <a href="index.html#facilities" class="btn btn-primary mt-2">Browse Facilities</a>
+        </div>
+      </section>
+
+      <!-- Invoices Tab -->
+      <section id="tab-invoices" class="hidden">
+        <div class="section-header" style="text-align: left; margin-bottom: 24px;">
+          <h3>Invoice History</h3>
+        </div>
+
+        <div id="invoices-list">
+          <div class="loading" id="invoices-loading">
+            <div class="spinner"></div>
+            <p>Loading invoices...</p>
+          </div>
+        </div>
+
+        <div class="empty-state hidden" id="invoices-empty">
+          <h3>No invoices</h3>
+          <p>You don't have any invoices yet.</p>
+        </div>
+      </section>
+
+      <!-- Sharing Tab -->
+      <section id="tab-sharing" class="hidden">
+        <div class="section-header" style="text-align: left; margin-bottom: 24px;">
+          <h3>Sharing Requests</h3>
+        </div>
+
+        <div id="sharing-list">
+          <div class="loading" id="sharing-loading">
+            <div class="spinner"></div>
+            <p>Loading share requests...</p>
+          </div>
+        </div>
+
+        <div class="empty-state hidden" id="sharing-empty">
+          <h3>No sharing requests</h3>
+          <p>No one has requested access to your units.</p>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-content">
+        <div class="footer-brand">Capstone</div>
+        <div class="footer-links">
+          <a href="index.html#facilities">Facilities</a>
+          <a href="index.html#features">Features</a>
+          <a href="#">Contact</a>
+          <a href="#">Privacy</a>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>&copy; 2026 Capstone Storage. All rights reserved.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script type="module">
+    import { initAuth, isAuthenticated, getUserInfo, logout, login } from './js/auth.js';
+    import { getUserRentals, getInvoices, getShareRequests, deleteRental, updateShareRequest } from './js/api.js';
+
+    // Handle OAuth callback first
+    if (window.location.hash.includes('access_token')) {
+      initAuth();
+    }
+
+    // Check authentication
+    if (!isAuthenticated()) {
+      // Not logged in, redirect to login
+      login();
+    }
+
+    // Initialize auth UI
+    initAuth();
+
+    // Get user info
+    const userInfo = getUserInfo();
+    if (userInfo) {
+      document.getElementById('user-name').textContent = userInfo.name || userInfo.email || 'User';
+      document.getElementById('user-email').textContent = userInfo.email || '';
+      document.getElementById('user-avatar').textContent = (userInfo.name || userInfo.email || 'U').charAt(0).toUpperCase();
+    }
+
+    // Logout handler
+    document.getElementById('logout-btn').addEventListener('click', (e) => {
+      e.preventDefault();
+      logout();
+    });
+
+    // Tab navigation
+    const tabLinks = document.querySelectorAll('.dashboard-nav-item');
+    const tabs = {
+      rentals: document.getElementById('tab-rentals'),
+      invoices: document.getElementById('tab-invoices'),
+      sharing: document.getElementById('tab-sharing'),
+    };
+
+    tabLinks.forEach(link => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        const tabName = link.dataset.tab;
+
+        // Update active states
+        tabLinks.forEach(l => l.classList.remove('active'));
+        link.classList.add('active');
+
+        // Show/hide tabs
+        Object.keys(tabs).forEach(key => {
+          if (key === tabName) {
+            tabs[key].classList.remove('hidden');
+          } else {
+            tabs[key].classList.add('hidden');
+          }
+        });
+
+        // Load tab data
+        if (tabName === 'rentals') loadRentals();
+        if (tabName === 'invoices') loadInvoices();
+        if (tabName === 'sharing') loadShareRequests();
+      });
+    });
+
+    // Load rentals
+    async function loadRentals() {
+      const listEl = document.getElementById('rentals-list');
+      const loadingEl = document.getElementById('rentals-loading');
+      const emptyEl = document.getElementById('rentals-empty');
+
+      loadingEl.classList.remove('hidden');
+      emptyEl.classList.add('hidden');
+
+      // Clear existing
+      const cards = listEl.querySelectorAll('.rental-card');
+      cards.forEach(card => card.remove());
+
+      try {
+        const response = await getUserRentals();
+        const rentals = response.rentals || [];
+
+        loadingEl.classList.add('hidden');
+
+        if (rentals.length === 0) {
+          emptyEl.classList.remove('hidden');
+          return;
+        }
+
+        rentals.forEach(rental => {
+          const card = createRentalCard(rental);
+          listEl.appendChild(card);
+        });
+
+      } catch (error) {
+        console.error('Error loading rentals:', error);
+        loadingEl.classList.add('hidden');
+        emptyEl.classList.remove('hidden');
+        emptyEl.querySelector('h3').textContent = 'Error loading rentals';
+      }
+    }
+
+    // Create rental card
+    function createRentalCard(rental) {
+      const card = document.createElement('div');
+      card.className = 'rental-card';
+
+      const imageUrl = rental.unit?.image_url || rental.facility?.image_url || 'https://images.unsplash.com/photo-1600566752355-35792bedcfea?w=400';
+      const facilityName = rental.facility?.name || 'Storage Facility';
+      const unitName = rental.unit?.name || rental.unit?.unit_number || 'Storage Unit';
+      const monthlyPrice = parseFloat(rental.monthly_price || 0).toLocaleString();
+      const startDate = new Date(rental.start_date || rental.created_at).toLocaleDateString();
+
+      card.innerHTML = `
+        <img src="${imageUrl}" alt="${unitName}" class="rental-card-image">
+        <div class="rental-card-body">
+          <h4 class="rental-card-title">${unitName}</h4>
+          <p class="text-muted">${facilityName}</p>
+          <div class="rental-card-details">
+            <span class="rental-card-detail"><strong>R${monthlyPrice}</strong>/month</span>
+            <span class="rental-card-detail">Since <strong>${startDate}</strong></span>
+            <span class="rental-card-detail">Type: <strong>${rental.rental_type || 'Subscription'}</strong></span>
+          </div>
+          <div class="rental-card-actions">
+            <button class="btn btn-sm btn-secondary" onclick="handleShareAccess('${rental.unit_id}')">Share Access</button>
+            <button class="btn btn-sm btn-outline" onclick="handleCancelRental('${rental.rental_id}')" style="color: var(--error);">Cancel Rental</button>
+          </div>
+        </div>
+      `;
+
+      return card;
+    }
+
+    // Load invoices
+    async function loadInvoices() {
+      const listEl = document.getElementById('invoices-list');
+      const loadingEl = document.getElementById('invoices-loading');
+      const emptyEl = document.getElementById('invoices-empty');
+
+      loadingEl.classList.remove('hidden');
+      emptyEl.classList.add('hidden');
+
+      // Clear existing
+      const cards = listEl.querySelectorAll('.invoice-card');
+      cards.forEach(card => card.remove());
+
+      try {
+        const response = await getInvoices();
+        const invoices = response.invoices || [];
+
+        loadingEl.classList.add('hidden');
+
+        if (invoices.length === 0) {
+          emptyEl.classList.remove('hidden');
+          return;
+        }
+
+        invoices.forEach(invoice => {
+          const card = createInvoiceCard(invoice);
+          listEl.appendChild(card);
+        });
+
+      } catch (error) {
+        console.error('Error loading invoices:', error);
+        loadingEl.classList.add('hidden');
+        emptyEl.classList.remove('hidden');
+        emptyEl.querySelector('h3').textContent = 'Error loading invoices';
+      }
+    }
+
+    // Create invoice card
+    function createInvoiceCard(invoice) {
+      const card = document.createElement('div');
+      card.className = 'rental-card invoice-card';
+
+      const amount = parseFloat(invoice.amount || 0).toLocaleString();
+      const createdAt = new Date(invoice.created_at).toLocaleDateString();
+      const status = invoice.status || 'pending';
+      const statusColor = status === 'paid' ? 'var(--success)' : status === 'failed' ? 'var(--error)' : 'var(--warning)';
+
+      card.innerHTML = `
+        <div class="rental-card-body" style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <h4 class="rental-card-title">Invoice #${invoice.invoice_id.slice(0, 8)}</h4>
+            <p class="text-muted">${invoice.billing_period || createdAt}</p>
+          </div>
+          <div style="text-align: right;">
+            <span style="font-size: 1.25rem; font-weight: 700;">R${amount}</span>
+            <span class="card-badge" style="background: ${statusColor}20; color: ${statusColor}; display: block; margin-top: 8px;">${status.toUpperCase()}</span>
+          </div>
+        </div>
+      `;
+
+      return card;
+    }
+
+    // Load share requests
+    async function loadShareRequests() {
+      const listEl = document.getElementById('sharing-list');
+      const loadingEl = document.getElementById('sharing-loading');
+      const emptyEl = document.getElementById('sharing-empty');
+
+      loadingEl.classList.remove('hidden');
+      emptyEl.classList.add('hidden');
+
+      // Clear existing
+      const cards = listEl.querySelectorAll('.share-request-card');
+      cards.forEach(card => card.remove());
+
+      try {
+        const response = await getShareRequests();
+        const requests = response.share_requests || [];
+
+        loadingEl.classList.add('hidden');
+
+        if (requests.length === 0) {
+          emptyEl.classList.remove('hidden');
+          return;
+        }
+
+        requests.forEach(request => {
+          const card = createShareRequestCard(request);
+          listEl.appendChild(card);
+        });
+
+      } catch (error) {
+        console.error('Error loading share requests:', error);
+        loadingEl.classList.add('hidden');
+        emptyEl.classList.remove('hidden');
+        emptyEl.querySelector('h3').textContent = 'Error loading share requests';
+      }
+    }
+
+    // Create share request card
+    function createShareRequestCard(request) {
+      const card = document.createElement('div');
+      card.className = 'rental-card share-request-card';
+      card.id = `request-${request.request_id}`;
+
+      const createdAt = new Date(request.created_at).toLocaleDateString();
+      const status = request.status || 'pending';
+      const isPending = status === 'pending';
+
+      card.innerHTML = `
+        <div class="rental-card-body">
+          <h4 class="rental-card-title">Access Request</h4>
+          <p class="text-muted">From: ${request.requester_email}</p>
+          <div class="rental-card-details">
+            <span class="rental-card-detail">Unit: <strong>${request.unit_id}</strong></span>
+            <span class="rental-card-detail">Requested: <strong>${createdAt}</strong></span>
+            <span class="rental-card-detail">Status: <strong>${status}</strong></span>
+          </div>
+          ${request.message ? `<p class="text-muted mt-2">"${request.message}"</p>` : ''}
+          ${isPending ? `
+          <div class="rental-card-actions">
+            <button class="btn btn-sm btn-primary" onclick="handleApproveRequest('${request.request_id}')">Approve</button>
+            <button class="btn btn-sm btn-outline" onclick="handleDenyRequest('${request.request_id}')" style="color: var(--error);">Deny</button>
+          </div>
+          ` : ''}
+        </div>
+      `;
+
+      return card;
+    }
+
+    // Handle actions
+    window.handleShareAccess = function(unitId) {
+      const email = prompt('Enter the email address to share access with:');
+      if (email) {
+        alert(`Sharing access to unit ${unitId} with ${email}. This feature will be fully implemented soon.`);
+      }
+    };
+
+    window.handleCancelRental = async function(rentalId) {
+      if (confirm('Are you sure you want to cancel this rental?')) {
+        try {
+          await deleteRental(rentalId);
+          alert('Rental cancelled successfully.');
+          loadRentals();
+        } catch (error) {
+          alert('Error cancelling rental: ' + error.message);
+        }
+      }
+    };
+
+    window.handleApproveRequest = async function(requestId) {
+      try {
+        await updateShareRequest(requestId, 'approved');
+        alert('Request approved!');
+        loadShareRequests();
+      } catch (error) {
+        alert('Error approving request: ' + error.message);
+      }
+    };
+
+    window.handleDenyRequest = async function(requestId) {
+      try {
+        await updateShareRequest(requestId, 'denied');
+        alert('Request denied.');
+        loadShareRequests();
+      } catch (error) {
+        alert('Error denying request: ' + error.message);
+      }
+    };
+
+    // Initial load
+    loadRentals();
+  </script>
+</body>
+</html>

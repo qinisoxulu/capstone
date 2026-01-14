@@ -2,16 +2,16 @@
 export const CONFIG = {
   // Cognito Configuration
   cognito: {
-    domain: 'https://eu-central-1kx3gocjqv.auth.eu-central-1.amazoncognito.com',
-    clientId: '15h813phjsbvkuo49brcdiu3qn',
-    redirectUri: window.location.origin + '/dashboard.html',
-    logoutUri: window.location.origin + '/index.html',
+    domain: 'https://capstone-stack-225974461356.auth.af-south-1.amazoncognito.com',
+    clientId: 'm7kvqlu44ecobiovd4cor6uhf',
+    redirectUri: 'http://localhost:8080/dashboard.html',
+    logoutUri: 'http://localhost:8080/index.html',
     scopes: ['email', 'openid', 'phone'],
-    region: 'eu-central-1',
-    userPoolId: 'eu-central-1_Kx3gocJqV'
+    region: 'af-south-1',
+    userPoolId: 'af-south-1_VFMM7Xzy3'
   },
 
-  apiBaseUrl: localStorage.getItem('apiBaseUrl') || 'https://your-api-id.execute-api.eu-central-1.amazonaws.com/Prod',
+  apiBaseUrl: localStorage.getItem('apiBaseUrl') || 'https://h43ytgotbl.execute-api.af-south-1.amazonaws.com/Prod',
 
   setApiBaseUrl(url) {
     localStorage.setItem('apiBaseUrl', url);

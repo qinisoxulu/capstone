@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Capstone - Secure Storage Solutions</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="container">
+      <a href="index.html" class="navbar-brand">Capstone</a>
+      <div class="navbar-nav">
+        <a href="#facilities" class="nav-link">Facilities</a>
+        <a href="#features" class="nav-link">Features</a>
+        <a href="dashboard.html" class="nav-link hidden" id="dashboard-link">Dashboard</a>
+        <a href="#" class="btn btn-primary" id="auth-btn">Sign Up</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="container">
+      <h1>Secure Storage Solutions</h1>
+      <p>Find the perfect storage unit for your needs. Safe, accessible, and affordable self-storage facilities across South Africa.</p>
+      <div class="hero-cta">
+        <a href="#facilities" class="btn btn-primary btn-lg">Browse Facilities</a>
+        <a href="#features" class="btn btn-outline btn-lg">Learn More</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Facilities Section -->
+  <section class="section" id="facilities">
+    <div class="container">
+      <div class="section-header">
+        <h2>Our Facilities</h2>
+        <p>Choose from our premium storage locations</p>
+      </div>
+
+      <!-- Filter Bar -->
+      <div class="filter-bar">
+        <div class="filter-group">
+          <label for="city-filter">Filter by City</label>
+          <select id="city-filter">
+            <option value="">All Cities</option>
+            <option value="Cape Town">Cape Town</option>
+            <option value="Johannesburg">Johannesburg</option>
+            <option value="Durban">Durban</option>
+            <option value="Pretoria">Pretoria</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Facilities Grid -->
+      <div id="facilities-grid" class="grid grid-3">
+        <!-- Loading state -->
+        <div class="loading" id="facilities-loading">
+          <div class="spinner"></div>
+          <p>Loading facilities...</p>
+        </div>
+      </div>
+
+      <!-- Empty state -->
+      <div class="empty-state hidden" id="facilities-empty">
+        <h3>No facilities found</h3>
+        <p>Try adjusting your filters or check back later.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section class="section features" id="features">
+    <div class="container">
+      <div class="section-header">
+        <h2>Why Choose Capstone?</h2>
+        <p>Experience the next generation of storage solutions with features designed for the modern world.</p>
+      </div>
+
+      <div class="grid grid-3">
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="12,6 12,12 16,14"/>
+            </svg>
+          </div>
+          <h3>24/7 Access</h3>
+          <p>Access your storage unit anytime with our secure keypad entry system. No appointments needed.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+          </div>
+          <h3>Secure & Private</h3>
+          <p>Your data stays yours. Built with privacy-first principles and enterprise-grade security.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+              <path d="M2 17l10 5 10-5"/>
+              <path d="M2 12l10 5 10-5"/>
+            </svg>
+          </div>
+          <h3>Flexible Plans</h3>
+          <p>From small lockers to large units. Monthly subscriptions with no long-term commitments.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Stats Section -->
+  <section class="section stats">
+    <div class="container">
+      <div class="stats-grid">
+        <div class="stat-item">
+          <h3 id="stat-facilities">4</h3>
+          <p>Facilities</p>
+        </div>
+        <div class="stat-item">
+          <h3 id="stat-units">200+</h3>
+          <p>Storage Units</p>
+        </div>
+        <div class="stat-item">
+          <h3>24/7</h3>
+          <p>Support</p>
+        </div>
+        <div class="stat-item">
+          <h3>5.0</h3>
+          <p>Rating</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-content">
+        <div class="footer-brand">Capstone</div>
+        <div class="footer-links">
+          <a href="#facilities">Facilities</a>
+          <a href="#features">Features</a>
+          <a href="#">Contact</a>
+          <a href="#">Privacy</a>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>&copy; 2026 Capstone Storage. All rights reserved.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script type="module">
+    import { initAuth, signup } from './js/auth.js';
+    import { getFacilities } from './js/api.js';
+
+    // Initialize authentication
+    initAuth();
+
+    // DOM Elements
+    const facilitiesGrid = document.getElementById('facilities-grid');
+    const facilitiesLoading = document.getElementById('facilities-loading');
+    const facilitiesEmpty = document.getElementById('facilities-empty');
+    const cityFilter = document.getElementById('city-filter');
+
+    // Load facilities
+    async function loadFacilities(city = null) {
+      facilitiesLoading.classList.remove('hidden');
+      facilitiesEmpty.classList.add('hidden');
+
+      // Clear existing cards (except loading)
+      const cards = facilitiesGrid.querySelectorAll('.facility-card');
+      cards.forEach(card => card.remove());
+
+      try {
+        const response = await getFacilities(city);
+        const facilities = response.facilities || [];
+
+        facilitiesLoading.classList.add('hidden');
+
+        if (facilities.length === 0) {
+          facilitiesEmpty.classList.remove('hidden');
+          return;
+        }
+
+        // Render facility cards
+        facilities.forEach(facility => {
+          const card = createFacilityCard(facility);
+          facilitiesGrid.appendChild(card);
+        });
+
+        // Update stats
+        document.getElementById('stat-facilities').textContent = facilities.length;
+
+      } catch (error) {
+        console.error('Error loading facilities:', error);
+        facilitiesLoading.classList.add('hidden');
+        facilitiesEmpty.classList.remove('hidden');
+        facilitiesEmpty.querySelector('h3').textContent = 'Error loading facilities';
+        facilitiesEmpty.querySelector('p').textContent = 'Please try again later.';
+      }
+    }
+
+    // Create facility card element
+    function createFacilityCard(facility) {
+      const card = document.createElement('div');
+      card.className = 'card facility-card';
+      card.onclick = () => {
+        window.location.href = `facility-details.html?id=${facility.facility_id}`;
+      };
+
+      const imageUrl = facility.image_url || 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=800';
+      const totalUnits = facility.total_units || 0;
+
+      card.innerHTML = `
+        <img src="${imageUrl}" alt="${facility.name}" class="card-image" loading="lazy">
+        <div class="card-body">
+          <div class="card-location">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+              <circle cx="12" cy="10" r="3"/>
+            </svg>
+            ${facility.city}
+          </div>
+          <h3 class="card-title">${facility.name}</h3>
+          <p class="card-text">${facility.address || ''}</p>
+          <div class="card-stats">
+            <span class="card-stat"><strong>${totalUnits}</strong> units</span>
+          </div>
+          <div class="card-meta">
+            <span class="card-price">From R350<span>/month</span></span>
+            <span class="btn btn-sm btn-primary">View Units</span>
+          </div>
+        </div>
+      `;
+
+      return card;
+    }
+
+    // Filter handler
+    cityFilter.addEventListener('change', (e) => {
+      const city = e.target.value;
+      loadFacilities(city || null);
+    });
+
+    // Initial load
+    loadFacilities();
+  </script>
+</body>
+</html>
