@@ -28,6 +28,9 @@ build_lambda:
 deploy_lambda:
   stage: deploy
   image: python:3.12
+  needs:
+    - job: build_lambda
+      artifacts: true
   before_script:
     - pip install awscli
   script:
