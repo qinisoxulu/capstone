@@ -1,9 +1,15 @@
-import json
+"""
+Show Facilities - Public endpoint to list all storage facilities.
+"""
+
 import boto3
-from boto3.dynamodb.conditions import Key, Attr
+from boto3.dynamodb.conditions import Attr
+
+from response_utils import success_response, server_error
 
 dynamodb = boto3.resource('dynamodb')
 table = dynamodb.Table('Facilities')
+
 
 def lambda_handler(event, context):
     try:
@@ -14,37 +20,14 @@ def lambda_handler(event, context):
 
         # Query DynamoDB
         if city:
-            # Scan with filter for city
-            response = table.scan(
-                FilterExpression=Attr('city').eq(city)
-            )
+            response = table.scan(FilterExpression=Attr('city').eq(city))
         else:
-            # Get all facilities
             response = table.scan()
 
         facilities = response.get('Items', [])
 
-        return {
-            "statusCode": 200,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*"
-            },
-            "body": json.dumps({
-                "facilities": facilities
-            })
-        }
+        return success_response({"facilities": facilities})
 
     except Exception as e:
         print(f"Error: {str(e)}")
-        return {
-            "statusCode": 500,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*"
-            },
-            "body": json.dumps({
-                "error": "Failed to retrieve facilities",
-                "message": str(e)
-            })
-        }
+        return server_error()

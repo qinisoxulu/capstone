@@ -1,35 +1,24 @@
-import json
+"""
+Show Unit Pricing - Public endpoint to view pricing for a specific unit.
+"""
+
 import boto3
 from decimal import Decimal
+
+from response_utils import success_response, not_found_error, validation_error, server_error
 
 dynamodb = boto3.resource('dynamodb')
 units_table = dynamodb.Table('Units')
 
-def decimal_to_float(obj):
-    """Convert Decimal to float for JSON serialization"""
-    if isinstance(obj, Decimal):
-        return float(obj)
-    raise TypeError
 
 def lambda_handler(event, context):
     try:
-        # Get unit_id from path parameters
         unit_id = event['pathParameters']['unit_id']
 
-        # Get unit details
         unit_response = units_table.get_item(Key={'unit_id': unit_id})
 
         if 'Item' not in unit_response:
-            return {
-                "statusCode": 404,
-                "headers": {
-                    "Content-Type": "application/json",
-                    "Access-Control-Allow-Origin": "*"
-                },
-                "body": json.dumps({
-                    "error": "Unit not found"
-                })
-            }
+            return not_found_error("Unit")
 
         unit = unit_response['Item']
         base_price = unit.get('price', Decimal('0'))
@@ -45,39 +34,13 @@ def lambda_handler(event, context):
             "discount_percent": discount_percent,
             "discount_amount": discount_amount,
             "final_price": final_price,
-            "currency": "USD"
+            "currency": "ZAR"
         }
 
-        return {
-            "statusCode": 200,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*"
-            },
-            "body": json.dumps(pricing_info, default=decimal_to_float)
-        }
+        return success_response(pricing_info)
 
     except KeyError:
-        return {
-            "statusCode": 400,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*"
-            },
-            "body": json.dumps({
-                "error": "Missing unit_id parameter"
-            })
-        }
+        return validation_error("Missing unit_id parameter")
     except Exception as e:
         print(f"Error: {str(e)}")
-        return {
-            "statusCode": 500,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*"
-            },
-            "body": json.dumps({
-                "error": "Failed to retrieve unit pricing",
-                "message": str(e)
-            })
-        }
+        return server_error()

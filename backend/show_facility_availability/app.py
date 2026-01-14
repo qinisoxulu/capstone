@@ -3,7 +3,6 @@ Show Facility Availability - Public endpoint to view available units in a facili
 No authentication required.
 """
 
-import json
 import boto3
 from boto3.dynamodb.conditions import Key
 

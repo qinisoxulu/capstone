@@ -1,32 +1,44 @@
+"""
+Upsert Payment Method - Add or update payment methods for authenticated users.
+"""
+
 import json
 import boto3
-from datetime import datetime
 import uuid
+from datetime import datetime
+from boto3.dynamodb.conditions import Key
+
+from auth_utils import require_auth
+from response_utils import success_response, validation_error, server_error
 
 dynamodb = boto3.resource('dynamodb')
 payment_methods_table = dynamodb.Table('PaymentMethods')
 
+
+@require_auth
 def lambda_handler(event, context):
     try:
-        # Parse request body
+        user_id = event['user_context']['user_id']
+
         body = json.loads(event['body'])
-        user_id = body['user_id']
-        card_last_four = body['card_last_four']
+        card_last_four = body.get('card_last_four')
         card_type = body.get('card_type', 'credit')
         card_brand = body.get('card_brand', '')
         expiry_month = body.get('expiry_month', '')
         expiry_year = body.get('expiry_year', '')
         is_default = body.get('is_default', False)
 
+        if not card_last_four:
+            return validation_error("card_last_four is required")
+
         # Generate payment_method_id if not provided (for new cards)
         payment_method_id = body.get('payment_method_id', str(uuid.uuid4()))
 
         # If setting as default, unset other defaults for this user
         if is_default:
-            # Scan for user's payment methods and update them
-            response = payment_methods_table.scan(
-                FilterExpression='user_id = :user_id',
-                ExpressionAttributeValues={':user_id': user_id}
+            response = payment_methods_table.query(
+                IndexName='user-index',
+                KeyConditionExpression=Key('user_id').eq(user_id)
             )
 
             for item in response.get('Items', []):
@@ -52,39 +64,13 @@ def lambda_handler(event, context):
             }
         )
 
-        return {
-            "statusCode": 201,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*"
-            },
-            "body": json.dumps({
-                "message": "Payment method saved successfully",
-                "payment_method_id": payment_method_id
-            })
-        }
+        return success_response({
+            "message": "Payment method saved successfully",
+            "payment_method_id": payment_method_id
+        }, 201)
 
     except KeyError as e:
-        return {
-            "statusCode": 400,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*"
-            },
-            "body": json.dumps({
-                "error": f"Missing required field: {str(e)}"
-            })
-        }
+        return validation_error(f"Missing required field: {str(e)}")
     except Exception as e:
         print(f"Error: {str(e)}")
-        return {
-            "statusCode": 500,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*"
-            },
-            "body": json.dumps({
-                "error": "Failed to save payment method",
-                "message": str(e)
-            })
-        }
+        return server_error()
