@@ -1,1 +1,1 @@
-{"errorMessage": "Unable to import module 'app': No module named 'response_utils'", "errorType": "Runtime.ImportModuleError", "requestId": "", "stackTrace": []}
+{"statusCode": 200, "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}, "body": "{\"unit\": {\"size\": \"small\", \"facility_id\": \"facility-001\", \"status\": \"available\", \"size_sqm\": 5.0, \"unit_id\": \"unit-001\", \"unit_number\": \"A101\", \"price\": 350.0, \"image_url\": \"https://images.unsplash.com/photo-1600566752355-35792bedcfea?w=400\", \"name\": \"Small Unit A101\"}}"}

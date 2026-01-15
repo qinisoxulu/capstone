@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Book Unit - Capstone</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .booking-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+      margin-top: 32px;
+    }
+    @media (max-width: 768px) {
+      .booking-container { grid-template-columns: 1fr; }
+    }
+    .booking-form {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 32px;
+    }
+    .form-group {
+      margin-bottom: 24px;
+    }
+    .form-group label {
+      display: block;
+      font-weight: 500;
+      margin-bottom: 8px;
+      color: var(--text-secondary);
+    }
+    .form-group input, .form-group select {
+      width: 100%;
+      padding: 12px 16px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-family: 'Vennor', sans-serif;
+      font-size: 1rem;
+    }
+    .rental-type-toggle {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .rental-type-btn {
+      flex: 1;
+      padding: 16px;
+      background: var(--bg-primary);
+      border: 2px solid var(--border-color);
+      border-radius: 8px;
+      color: var(--text-secondary);
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .rental-type-btn.active {
+      border-color: var(--accent);
+      color: var(--text-primary);
+      background: rgba(254, 44, 85, 0.1);
+    }
+    .unit-summary {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .unit-summary img {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+    }
+    .unit-summary-body {
+      padding: 24px;
+    }
+    .price-breakdown {
+      margin-top: 24px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border-color);
+    }
+    .price-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      color: var(--text-secondary);
+    }
+    .price-row.total {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      padding-top: 12px;
+      border-top: 1px solid var(--border-color);
+    }
+    .payment-methods-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .payment-method-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px;
+      background: var(--bg-primary);
+      border: 2px solid var(--border-color);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .payment-method-item:hover {
+      border-color: var(--border-light);
+    }
+    .payment-method-item.selected {
+      border-color: var(--accent);
+    }
+    .payment-method-item input[type="radio"] {
+      width: 20px;
+      height: 20px;
+      accent-color: var(--accent);
+    }
+    .card-icon {
+      width: 40px;
+      height: 28px;
+      background: var(--bg-secondary);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+    .result-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+    }
+    .result-modal-content {
+      background: var(--bg-secondary);
+      border-radius: 16px;
+      padding: 48px;
+      text-align: center;
+      max-width: 400px;
+    }
+    .result-icon {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 24px;
+    }
+    .result-icon.success { background: var(--success); }
+    .result-icon.error { background: var(--error); }
+    .unavailable-notice {
+      background: rgba(255, 71, 87, 0.1);
+      border: 1px solid var(--error);
+      border-radius: 12px;
+      padding: 32px;
+      text-align: center;
+    }
+    .unavailable-notice h3 {
+      color: var(--error);
+      margin-bottom: 12px;
+    }
+    .loading-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.8);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+    }
+    .loading-overlay p {
+      margin-top: 16px;
+      color: var(--text-primary);
+    }
+  </style>
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="container">
+      <a href="index.html" class="navbar-brand">Capstone</a>
+      <div class="navbar-nav">
+        <a href="index.html#facilities" class="nav-link">Facilities</a>
+        <a href="dashboard.html" class="nav-link">Dashboard</a>
+        <a href="#" class="btn btn-secondary" id="logout-btn">Logout</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Page Header -->
+  <header class="page-header">
+    <div class="container">
+      <a href="javascript:history.back()" class="back-link">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+        </svg>
+        Back
+      </a>
+      <h1>Complete Your Booking</h1>
+      <p class="text-muted">Secure your storage unit today</p>
+    </div>
+  </header>
+
+  <!-- Loading Overlay -->
+  <div class="loading-overlay hidden" id="loading-overlay">
+    <div class="spinner"></div>
+    <p id="loading-text">Checking availability...</p>
+  </div>
+
+  <!-- Booking Content -->
+  <section class="section" style="padding-top: 0;">
+    <div class="container">
+      <div class="booking-container">
+       ~
+
+        <!-- Unit Summary -->
+        <div class="unit-summary">
+          <img id="unit-image" src="" alt="Storage Unit">
+          <div class="unit-summary-body">
+            <h3 id="unit-name">Loading...</h3>
+            <p class="text-muted" id="facility-name"></p>
+            <div class="unit-details mt-2">
+              <span class="unit-detail" id="unit-size"></span>
+            </div>
+            <div class="price-breakdown">
+              <div class="price-row">
+                <span>Monthly Rate</span>
+                <span id="monthly-rate">R0</span>
+              </div>
+              <div class="price-row total">
+                <span>Total Due Today</span>
+                <span id="total-amount">R0</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Result Modal -->
+  <div class="result-modal hidden" id="result-modal">
+    <div class="result-modal-content">
+      <div class="result-icon" id="result-icon">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" id="result-svg"></svg>
+      </div>
+      <h2 id="result-title">Result</h2>
+      <p class="text-muted mt-2" id="result-message"></p>
+      <a href="dashboard.html" class="btn btn-primary mt-3" id="result-btn">Go to Dashboard</a>
+    </div>
+  </div>
+
+  <script type="module">
+    import { isAuthenticated, logout, login } from './js/auth.js';
+    import { getUnitDetails, createRental } from './js/api.js';
+
+    // Require auth
+    if (!isAuthenticated()) {
+      login();
+    }
+
+    // Get unit ID from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const unitId = urlParams.get('unit');
+
+    if (!unitId) {
+      window.location.href = 'index.html';
+    }
+
+    // State
+    let rentalType = 'subscription';
+    let mockResult = 'success'; // 'success' or 'fail'
+    let unitData = null;
+
+    // DOM elements
+    const bookBtn = document.getElementById('book-btn');
+    const paymentMethodsList = document.getElementById('payment-methods-list');
+    const bookingForm = document.getElementById('booking-form');
+    const loadingOverlay = document.getElementById('loading-overlay');
+    const loadingText = document.getElementById('loading-text');
+    const resultModal = document.getElementById('result-modal');
+
+    // Logout handler
+    document.getElementById('logout-btn').addEventListener('click', (e) => {
+      e.preventDefault();
+      logout();
+    });
+
+    // Rental type toggle
+    document.querySelectorAll('.rental-type-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.rental-type-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        rentalType = btn.dataset.type;
+      });
+    });
+
+    // Show loading
+    function showLoading(text) {
+      loadingText.textContent = text;
+      loadingOverlay.classList.remove('hidden');
+    }
+
+    // Hide loading
+    function hideLoading() {
+      loadingOverlay.classList.add('hidden');
+    }
+
+    // Show result modal
+    function showResult(success, title, message, buttonText = 'Go to Dashboard', buttonHref = 'dashboard.html') {
+      const icon = document.getElementById('result-icon');
+      const svg = document.getElementById('result-svg');
+
+      icon.className = 'result-icon ' + (success ? 'success' : 'error');
+      svg.innerHTML = success
+        ? '<polyline points="20 6 9 17 4 12"/>'
+        : '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>';
+
+      document.getElementById('result-title').textContent = title;
+      document.getElementById('result-message').textContent = message;
+      document.getElementById('result-btn').textContent = buttonText;
+      document.getElementById('result-btn').href = buttonHref;
+
+      resultModal.classList.remove('hidden');
+    }
+
+    // Load unit details
+    async function loadUnitDetails() {
+      showLoading('Loading unit details...');
+
+      try {
+        const response = await getUnitDetails(unitId);
+        unitData = response.unit;
+
+        // Update UI with unit details
+        document.getElementById('unit-image').src = unitData.image_url || 'https://images.unsplash.com/photo-1600566752355-35792bedcfea?w=400';
+        document.getElementById('unit-name').textContent = unitData.name || unitData.unit_number || 'Storage Unit';
+        document.getElementById('facility-name').textContent = `Facility: ${unitData.facility_id}`;
+        document.getElementById('unit-size').textContent = `${unitData.size_sqm || 10} sqm - ${unitData.size || 'Standard'}`;
+
+        const price = parseFloat(unitData.price || 0);
+        document.getElementById('monthly-rate').textContent = `R${price.toLocaleString()}`;
+        document.getElementById('total-amount').textContent = `R${price.toLocaleString()}`;
+
+        // Show mock payment options
+        renderMockPaymentOptions();
+        bookBtn.disabled = false;
+        hideLoading();
+
+      } catch (error) {
+        console.error('Error loading unit:', error);
+        hideLoading();
+        showResult(false, 'Error', 'Failed to load unit details. Please try again.', 'Go Back', 'index.html');
+      }
+    }
+
+    // Render mock payment options
+    function renderMockPaymentOptions() {
+      paymentMethodsList.innerHTML = `
+        <label class="payment-method-item selected">
+          <input type="radio" name="mock-result" value="success" checked>
+          <div class="card-icon" style="background: var(--success);">OK</div>
+          <div>
+            <strong>Mock Success</strong>
+            <p class="text-muted" style="font-size: 0.8rem; margin: 0;">Payment will succeed</p>
+          </div>
+        </label>
+        <label class="payment-method-item">
+          <input type="radio" name="mock-result" value="fail">
+          <div class="card-icon" style="background: var(--error);">X</div>
+          <div>
+            <strong>Mock Fail</strong>
+            <p class="text-muted" style="font-size: 0.8rem; margin: 0;">Payment will fail</p>
+          </div>
+        </label>
+      `;
+
+      // Add event listeners
+      paymentMethodsList.querySelectorAll('input[name="mock-result"]').forEach(input => {
+        input.addEventListener('change', (e) => {
+          document.querySelectorAll('.payment-method-item').forEach(i => i.classList.remove('selected'));
+          e.target.closest('.payment-method-item').classList.add('selected');
+          mockResult = e.target.value;
+        });
+      });
+    }
+
+    // Book button click
+    bookBtn.addEventListener('click', async () => {
+      if (!unitData) return;
+
+      showLoading('Processing payment...');
+
+      // Simulate payment processing delay
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      if (mockResult === 'success') {
+        // Show success immediately
+        hideLoading();
+        showResult(true, 'Booking Successful!', 'Your storage unit has been reserved. An invoice has been sent to your email.');
+
+        // Call API to create rental in background
+        createRental(unitId, 'mock-payment', rentalType)
+          .then(() => console.log('Rental created successfully'))
+          .catch(err => console.error('Rental creation error:', err));
+      } else {
+        // Mock fail
+        hideLoading();
+        showResult(false, 'Payment Failed', 'Your payment could not be processed. Please try again.', 'Try Again', window.location.href);
+      }
+    });
+
+    // Initialize
+    loadUnitDetails();
+  </script>
+</body>
+</html>

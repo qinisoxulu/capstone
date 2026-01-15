@@ -54,15 +54,17 @@ def lambda_handler(event, context):
         if rental_type not in ['subscription', 'one-time']:
             return validation_error("rental_type must be 'subscription' or 'one-time'")
 
-        # Validate payment method belongs to authenticated user
-        pm_response = payment_methods_table.query(
-            IndexName='user-index',
-            KeyConditionExpression=Key('user_id').eq(user_id),
-            FilterExpression=Attr('payment_method_id').eq(payment_method_id)
-        )
+        # Skip payment method validation for mock payments (testing/demo)
+        if payment_method_id != 'mock-payment':
+            # Validate payment method belongs to authenticated user
+            pm_response = payment_methods_table.query(
+                IndexName='user-index',
+                KeyConditionExpression=Key('user_id').eq(user_id),
+                FilterExpression=Attr('payment_method_id').eq(payment_method_id)
+            )
 
-        if not pm_response.get('Items'):
-            return forbidden_error("Invalid payment method")
+            if not pm_response.get('Items'):
+                return forbidden_error("Invalid payment method")
 
         # Get unit details and verify it's available
         unit_response = units_table.get_item(Key={'unit_id': unit_id})

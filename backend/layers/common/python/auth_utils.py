@@ -27,7 +27,7 @@ def extract_user_from_event(event: Dict) -> Tuple[str, str, str, str]:
         claims = event['requestContext']['authorizer']['claims']
 
         user_id = claims['sub']  # Cognito user ID (UUID)
-        email = claims['email']
+        email = claims.get('email', '')  # May not be present in access token
         user_type = claims.get('custom:user_type', 'client')  # Default to 'client'
         full_name = claims.get('custom:full_name', '')
 

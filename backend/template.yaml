@@ -207,6 +207,9 @@ Resources:
       - x86_64
       Layers:
         - !Ref CommonUtilsLayer
+      Environment:
+        Variables:
+          SENDER_EMAIL: !Ref SenderEmail
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref ShareRequestsTable
@@ -214,6 +217,10 @@ Resources:
             TableName: !Ref UnitsTable
         - DynamoDBReadPolicy:
             TableName: !Ref RentalsTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref UsersTable
+        - SESCrudPolicy:
+            IdentityName: "*"
       Events:
         RequestUnitAccess:
           Type: Api
