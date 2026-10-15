@@ -3,8 +3,6 @@ name: Build and Deploy SAM App
 on:
   push:
     branches:
-      - main
-      - master
       - production
 
 env:
@@ -60,6 +58,9 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
+
+      - name: Install AWS CLI
+        run: pip install awscli
 
       - name: Package and Deploy to AWS
         run: |
