@@ -1,0 +1,76 @@
+name: Build and Deploy SAM App
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - production
+
+env:
+  AWS_DEFAULT_REGION: af-south-1
+  S3_BUCKET: capstone-deploy-bucket
+  STACK_NAME: capstone-stack
+
+jobs:
+  build_lambda:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies and AWS SAM CLI
+        run: |
+          python -m pip install --upgrade pip
+          pip install aws-sam-cli
+
+      - name: Build SAM application
+        run: |
+          cd backend
+          sam build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sam-artifacts
+          path: backend/.aws-sam/
+          retention-days: 1
+
+  deploy_lambda:
+    needs: build_lambda
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: sam-artifacts
+          path: backend/.aws-sam/
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+
+      - name: Package and Deploy to AWS
+        run: |
+          aws s3 mb s3://$S3_BUCKET --region $AWS_DEFAULT_REGION || true
+          cd backend
+          aws cloudformation package \
+            --template-file .aws-sam/build/template.yaml \
+            --s3-bucket "$S3_BUCKET" \
+            --output-template-file packaged.yaml
+          aws cloudformation deploy \
+            --template-file packaged.yaml \
+            --stack-name "$STACK_NAME" \
+            --capabilities CAPABILITY_IAM \
+            --no-fail-on-empty-changeset
